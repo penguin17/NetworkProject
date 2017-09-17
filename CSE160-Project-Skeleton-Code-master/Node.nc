@@ -22,6 +22,9 @@ module Node{
    uses interface SimpleSend as Sender;
 
    uses interface CommandHandler;
+////////////////////////////////////////////////////
+   uses interface Timer<TMilli> as periodicTimer; //Interface that was wired above.
+///////////////////////////////////////////////////
 }
 
 implementation{
@@ -32,10 +35,19 @@ implementation{
 
    event void Boot.booted(){
       call AMControl.start();
+      call periodicTimer.startPeriodic( 100 );
 
       dbg(GENERAL_CHANNEL, "Booted\n");
    }
+  // Added Code/////////////////////////
+    event void periodicTimer.fired()
+    {
+        dbg(GENERAL_CHANNEL, "Derp\n");
 
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, 0, 0, 10, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendPackage, destination);
+    }
+  ///////////////////////////////
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
