@@ -43,9 +43,6 @@ implementation{
     event void periodicTimer.fired()
     {
         dbg(GENERAL_CHANNEL, "Derp\n");
-
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 1, 0, 0, 10, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendPackage, destination);
     }
   ///////////////////////////////
    event void AMControl.startDone(error_t err){
