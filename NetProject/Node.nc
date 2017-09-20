@@ -46,7 +46,7 @@ implementation{
 
       dbg(GENERAL_CHANNEL, "The timer being called yeah and the result of string is  %s \n",wow);
       makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
-      call Sender.send(TOS_NODE_ID, AM_BROADCAST_ADDR,&sendPackage);
+      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
     }
 
    event void AMControl.startDone(error_t err){
