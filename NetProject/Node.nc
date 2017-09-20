@@ -40,14 +40,18 @@ implementation{
 
    event void periodicTimer.fired()
     {
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, 1, PACKET_MAX_PAYLOAD_SIZE);
+        uint8_t wow[2];
+        wow[0] = 1;
+        wow[1] = 2;
+
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, wow, 2);
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
     }
 
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic( 100 );
+         //call periodicTimer.startPeriodic( TMilli );
       }else{
          //Retry until successful
          call AMControl.start();
