@@ -50,6 +50,8 @@ implementation{
       uint8_t wow[2];
         wow[0] = 'H';
         wow[1] = 'i';
+        wow[2] = 'y';
+        wow[3] = 'a';
       dbg(GENERAL_CHANNEL,"%s\n",wow);
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
