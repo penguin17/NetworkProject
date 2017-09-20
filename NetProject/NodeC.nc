@@ -17,16 +17,13 @@ implementation {
     components MainC;
     components Node;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
-    //////////////////////////////////////////////////////////////
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
-    //////////////////////////////////////////////////////////////
 
     Node -> MainC.Boot;
-/////////////////////////////////////////////////////////////
-    Node.periodicTimer -> myTimerC; //Wire the interface to the component
-/////////////////////////////////////////////////////////////
 
     Node.Receive -> GeneralReceive;
+
+    Node.periodicTimer -> myTimerC; //Wire the interface to the component
 
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;

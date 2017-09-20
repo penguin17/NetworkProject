@@ -16,15 +16,14 @@
 module Node{
    uses interface Boot;
 
+   uses interface Timer<TMilli> as periodicTimer; //Interface that was wired above.
+
    uses interface SplitControl as AMControl;
    uses interface Receive;
 
    uses interface SimpleSend as Sender;
 
    uses interface CommandHandler;
-////////////////////////////////////////////////////
-   uses interface Timer<TMilli> as periodicTimer; //Interface that was wired above.
-///////////////////////////////////////////////////
 }
 
 implementation{
@@ -38,13 +37,13 @@ implementation{
 
       dbg(GENERAL_CHANNEL, "Booted\n");
    }
-  // Added Code/////////////////////////
-    event void periodicTimer.fired()
+
+   event void periodicTimer.fired()
     {
         makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, 1, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
     }
-  ///////////////////////////////
+
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
