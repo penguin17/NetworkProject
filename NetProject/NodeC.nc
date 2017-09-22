@@ -16,12 +16,15 @@ configuration NodeC{
 implementation {
     components MainC;
     components Node;
+    components new HashmapC(int,100) as HashC;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
 
     Node -> MainC.Boot;
 
     Node.Receive -> GeneralReceive;
+
+    Node.Hash -> HashC;
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
 

@@ -21,6 +21,8 @@ module Node{
    uses interface SplitControl as AMControl;
    uses interface Receive;
 
+   uses interface Hashmap<int> as Hash;
+
    uses interface SimpleSend as Sender;
 
    uses interface CommandHandler;
@@ -28,31 +30,42 @@ module Node{
 
 implementation{
    pack sendPackage;
+   int sequence = 0;
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
 
    event void Boot.booted(){
       call AMControl.start();
-
       dbg(GENERAL_CHANNEL, "Booted\n");
+
+  /////////////////////////////////////////////////
+      call Hash.insert(TOS_NODE_ID,sequence);
+  ////////////////////////////////////////////////
    }
 
+/* ////////////////////////////////////////////
    event void periodicTimer.fired()
     {
         uint8_t wow[2];
         wow[0] = 'W';
         wow[1] = 'O';
 
-      dbg(GENERAL_CHANNEL, "The timer being called yeah and the result of string is  %s \n",wow);
-      makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
-      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      dbg(GENERAL_CHANNEL, "%d is the node that's currently sending signal %s \n",TOS_NODE_ID,wow);
+      if (TOS_NODE_ID == 1)
+      {
+        dbg(GENERAL_CHANNEL, "Packet is currently being sent\n");
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      }
     }
+  ////////////////////////////////////////////
+*/ 
 
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic( 100 );
+        // call periodicTimer.startPeriodic( 100 );
       }else{
          //Retry until successful
          call AMControl.start();
@@ -63,9 +76,34 @@ implementation{
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
       dbg(GENERAL_CHANNEL, "Packet Received\n");
+
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-         dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+         dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
+
+         dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+
+         if (myMsg->dest == TOS_NODE_ID)
+         {
+           dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
+         }
+         else
+         {
+           dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);
+           
+           if (call Hash.get(myMsg->src) < myMsg->seq)
+           {
+              dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
+
+              call Hash.remove(myMsg->src);
+              call Hash.insert(myMsg->src,myMsg->seq);
+
+              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PINGREPLY, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+           }
+
+           
+         }
          return msg;
       }
       dbg(GENERAL_CHANNEL, "Unknown Packet Type %d\n", len);
@@ -75,8 +113,12 @@ implementation{
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
-      makePack(&sendPackage, TOS_NODE_ID, destination, 0, 0, 0, payload, PACKET_MAX_PAYLOAD_SIZE);
-      call Sender.send(sendPackage, destination);
+      
+      makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
+      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      
+      
+      sequence = sequence + 1;
    }
 
    event void CommandHandler.printNeighbors(){}
