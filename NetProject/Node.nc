@@ -45,7 +45,7 @@ implementation{
 
      for(i = 0; i < call NeighborList.size(); i++)
      {
-        dbg(NEIGHBOR_CHANNEL,"Node: %d",call NeighborList.get(i));
+        dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call NeighborList.get(i));
      }
    }
    void deleteNeighbors()
@@ -169,7 +169,7 @@ implementation{
 
      for(i = 0; i < call NeighborList.size(); i++)
      {
-        dbg(NEIGHBOR_CHANNEL,"Node: %d",call NeighborList.get(i));
+        dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call NeighborList.get(i));
      }
 
    }
