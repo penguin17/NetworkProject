@@ -79,30 +79,32 @@ implementation{
 
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-         dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
+         //dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
 
-         dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+         //dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+
+         if (!call Hash.contains(myMsg->src))
+              call Hash.insert(myMsg->src,-1);
+
+         if (call Hash.get(myMsg->src) < myMsg->seq)
+         {
+            dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
+
+            call Hash.remove(myMsg->src);
+            call Hash.insert(myMsg->src,myMsg->seq);
+
+            makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+            call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+         }
 
          if (myMsg->dest == TOS_NODE_ID)
          {
            dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
+           dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
          }
          else
          {
-           dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);
-           
-           if (call Hash.get(myMsg->src) < myMsg->seq)
-           {
-              dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
-
-              call Hash.remove(myMsg->src);
-              call Hash.insert(myMsg->src,myMsg->seq);
-
-              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PINGREPLY, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-           }
-
-           
+           dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);           
          }
          return msg;
       }
