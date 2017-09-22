@@ -20,6 +20,7 @@ module Node{
 
    uses interface SplitControl as AMControl;
    uses interface Receive;
+   uses interface List<int> as NeighborList;
 
    uses interface Hashmap<int> as Hash;
 
@@ -31,26 +32,56 @@ module Node{
 implementation{
    pack sendPackage;
    int sequence = 0;
+   bool printTime = false;
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
 
+   void printNeighbors()
+   {
+     int i = 0;
+
+     dbg(NEIGHBOR_CHANNEL,"List of neighbors for node %d\n",TOS_NODE_ID);
+
+     for(i = 0; i < call NeighborList.size(); i++)
+     {
+        dbg(NEIGHBOR_CHANNEL,"Node: %d",call NeighborList.get(i));
+     }
+   }
+   void deleteNeighbors()
+   {
+     while(!call NeighborList.isEmpty())
+     {
+       call NeighborList.popfront();
+     }
+   }
    event void Boot.booted(){
       call AMControl.start();
       dbg(GENERAL_CHANNEL, "Booted\n");
 
   /////////////////////////////////////////////////
-      call Hash.insert(TOS_NODE_ID,sequence);
   ////////////////////////////////////////////////
    }
 
  ////////////////////////////////////////////
    event void periodicTimer.fired()
     {
-        uint8_t wow[2];
-        wow[0] = 'W';
-        wow[1] = 'O';
-
+      uint8_t wow[2];
+      wow[0] = 'W';
+      wow[1] = 'O';
+      
+      if (!printTime)
+      {
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, payload, PACKET_MAX_PAYLOAD_SIZE);
+        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+        printTime = true;
+      }
+      else
+      {
+        printNeighbors();
+        deleteNeighbors();
+        printTime = false;
+      }
     }
   ////////////////////////////////////////////
 
@@ -58,7 +89,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-        // call periodicTimer.startPeriodic( 100 );
+         call periodicTimer.startPeriodic( 150 );
       }else{
          //Retry until successful
          call AMControl.start();
@@ -81,7 +112,7 @@ implementation{
 
          if (call Hash.get(myMsg->src) < myMsg->seq)
          {
-            dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
+            //dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
 
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
@@ -95,9 +126,22 @@ implementation{
            dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
            dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
          }
-         else
+         else if (myMsg->protocol == PROTOCOL_PINGREPLY && myMsg->dest != TOS_NODE_ID)
          {
+           makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+           call Sender.send(sendPackage, myMsg->src);
            //dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);           
+         }
+         else if (myMsg->protocol == PROTOCOL_PINGREPLY && myMsg->dest == TOS_NODE_ID)
+         {
+           int i = 0;
+
+           for(i = 0; i < call NeighborList.size(); i++)
+           {
+             if (call NeighborList.get(i) == myMsg->src)
+              return msg;
+           } 
+           call NeighborList.pushfront(myMsg->src);
          }
          return msg;
       }
@@ -112,11 +156,23 @@ implementation{
       makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
+      call Hash.insert(TOS_NODE_ID,sequence);
       
       sequence = sequence + 1;
    }
 
-   event void CommandHandler.printNeighbors(){}
+   event void CommandHandler.printNeighbors()
+   {
+     int i = 0;
+
+     dbg(NEIGHBOR_CHANNEL,"List of neighbors for node %d\n",TOS_NODE_ID);
+
+     for(i = 0; i < call NeighborList.size(); i++)
+     {
+        dbg(NEIGHBOR_CHANNEL,"Node: %d",call NeighborList.get(i));
+     }
+
+   }
 
    event void CommandHandler.printRouteTable(){}
 
