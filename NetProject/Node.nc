@@ -44,23 +44,16 @@ implementation{
   ////////////////////////////////////////////////
    }
 
-/* ////////////////////////////////////////////
+ ////////////////////////////////////////////
    event void periodicTimer.fired()
     {
         uint8_t wow[2];
         wow[0] = 'W';
         wow[1] = 'O';
 
-      dbg(GENERAL_CHANNEL, "%d is the node that's currently sending signal %s \n",TOS_NODE_ID,wow);
-      if (TOS_NODE_ID == 1)
-      {
-        dbg(GENERAL_CHANNEL, "Packet is currently being sent\n");
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, 0, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-      }
     }
   ////////////////////////////////////////////
-*/ 
+
 
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
@@ -93,7 +86,7 @@ implementation{
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
 
-            makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+            makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
             call Sender.send(sendPackage, AM_BROADCAST_ADDR);
          }
 
