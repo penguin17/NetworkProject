@@ -121,7 +121,7 @@ implementation{
             call Sender.send(sendPackage, AM_BROADCAST_ADDR);
          }
 
-         if (myMsg->dest == TOS_NODE_ID)
+         if (myMsg->dest == TOS_NODE_ID && myMsg->protocal != PROTOCOL_PINGREPLY)
          {
            dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
            dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
