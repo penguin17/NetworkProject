@@ -32,7 +32,7 @@ module Node{
 implementation{
    pack sendPackage;
    int sequence = 0;
-   bool printTime = false;
+   bool printTime = FALSE;
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
@@ -72,15 +72,15 @@ implementation{
       
       if (!printTime)
       {
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, payload, PACKET_MAX_PAYLOAD_SIZE);
+        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
         call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-        printTime = true;
+        printTime = TRUE;
       }
       else
       {
         printNeighbors();
         deleteNeighbors();
-        printTime = false;
+        printTime = FALSE;
       }
     }
   ////////////////////////////////////////////
