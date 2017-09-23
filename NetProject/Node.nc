@@ -86,7 +86,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic(100);
+         call periodicTimer.startPeriodic(200);
       }else{
          //Retry until successful
          call AMControl.start();
@@ -171,7 +171,7 @@ implementation{
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
       call Hash.insert(TOS_NODE_ID,sequence);
-      
+      printNeighbors();
       sequence = sequence + 1;
    }
 
