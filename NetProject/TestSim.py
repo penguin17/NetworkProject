@@ -141,7 +141,7 @@ def main():
     s.ping(1, 3, "Hi!");
     s.runTime(20);
     
-    for i in range(1, self.numMote+1):
+    for i in range(1, s.numMote+1):
             self.neighborDMP(i);
 
 if __name__ == '__main__':
