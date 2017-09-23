@@ -98,7 +98,7 @@ implementation{
    }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-      dbg(GENERAL_CHANNEL, "Packet Received\n");
+      //dbg(GENERAL_CHANNEL, "Packet Received\n");
 
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
