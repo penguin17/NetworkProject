@@ -78,19 +78,16 @@ implementation{
       }
    }
 
-   event void AMControl.stopDone(error_t err)
-   {
-     printNeighbors();
-   }
+   event void AMControl.stopDone(error_t err){}
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-      //dbg(GENERAL_CHANNEL, "Packet Received\n");
+      dbg(GENERAL_CHANNEL, "Packet Received\n");
 
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-         //dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
+         dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
 
-         //dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+         dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
 
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
@@ -99,7 +96,7 @@ implementation{
          {
            // This is what causes the flooding 
 
-            //dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
+            dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
 
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
