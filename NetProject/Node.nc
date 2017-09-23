@@ -21,6 +21,7 @@ module Node{
    uses interface SplitControl as AMControl;
    uses interface Receive;
    uses interface List<int> as NeighborList;
+   uses interface List<int> as CheckList;
 
    uses interface Hashmap<int> as Hash;
 
@@ -33,6 +34,7 @@ implementation{
    pack sendPackage;
    int sequence = 0;
    bool printTime = FALSE;
+   bool first = TRUE;
 
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
@@ -48,13 +50,22 @@ implementation{
         dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call NeighborList.get(i));
      }
    }
-   void deleteNeighbors()
+
+   void deleteCheckList()
+   {
+     while(!call CheckList.isEmpty())
+     {
+       call CheckList.popfront();
+     }
+   }
+   void deleteNeighborList()
    {
      while(!call NeighborList.isEmpty())
      {
        call NeighborList.popfront();
      }
    }
+
    event void Boot.booted(){
       call AMControl.start();
       dbg(GENERAL_CHANNEL, "Booted\n");
@@ -63,6 +74,17 @@ implementation{
   ////////////////////////////////////////////////
    }
 
+  void compareLists()
+  {
+    int i = 0;
+
+    deleteNeighborList();
+
+    for (i = 0; i < call CheckList.size(); i++)
+    {
+      call NeighborList.insert(call CheckList.get(i));
+    }
+  }
  ////////////////////////////////////////////
    event void periodicTimer.fired()
     {
@@ -82,6 +104,7 @@ implementation{
       else
       {
         printTime = TRUE;
+        compareLists();
       }
 
       //printTime = TRUE;
@@ -146,18 +169,18 @@ implementation{
          }
          else if (myMsg->protocol == PROTOCOL_PINGREPLY)
          {
-              int size = call NeighborList.size();
+              int size = call CheckList.size();
               int i = 0;
             
             //dbg(FLOODING_CHANNEL,"received pingreply\n");
               for (i = 0; i < size; i++)
               {
-                if (call NeighborList.get(i) == myMsg->src)
+                if (call CheckList.get(i) == myMsg->src)
                   return msg;
               }
 
               //dbg(FLOODING_CHANNEL,"%d received from %d\n",TOS_NODE_ID,myMsg->src);
-              call NeighborList.pushfront(myMsg->src);
+              call CheckList.pushfront(myMsg->src);
          }
          
          return msg;
