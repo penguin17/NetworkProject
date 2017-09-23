@@ -142,7 +142,7 @@ def main():
     s.runTime(20);
     
     for i in range(1, s.numMote+1):
-            self.neighborDMP(i);
+            s.neighborDMP(i);
 
 if __name__ == '__main__':
     main()
