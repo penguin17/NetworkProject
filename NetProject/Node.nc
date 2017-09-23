@@ -71,7 +71,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         //call periodicTimer.startPeriodic( 100 );
+         
       }else{
          //Retry until successful
          call AMControl.start();
@@ -110,7 +110,8 @@ implementation{
             }
             else
             {
-              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              //makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
+              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               call Sender.send(sendPackage, AM_BROADCAST_ADDR);
             }
          }
