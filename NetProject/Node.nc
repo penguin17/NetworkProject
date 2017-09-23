@@ -135,8 +135,6 @@ implementation{
          }
          else if (myMsg->protocol == PROTOCOL_PINGREPLY)
          {
-           if (myMsg->dest == TOS_NODE_ID)
-           {
               int size = call NeighborList.size();
               int i = 0;
 
@@ -147,14 +145,6 @@ implementation{
               }
 
               call NeighborList.pushfront(myMsg->src);
-           }
-           else
-           {
-              // Message has been received to send back
-
-              makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-           }
          }
          
          return msg;
