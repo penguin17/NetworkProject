@@ -75,7 +75,7 @@ implementation{
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       //printTime = TRUE;
     
-      //printNeighbors();
+      printNeighbors();
       //deleteNeighbors();
       //printTime = FALSE;
       
@@ -86,7 +86,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startOneShot(50);
+         call periodicTimer.startPeriodic(50);
       }else{
          //Retry until successful
          call AMControl.start();
