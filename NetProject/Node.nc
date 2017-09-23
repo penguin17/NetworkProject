@@ -113,7 +113,7 @@ implementation{
       if (printTime)
       {
         printTime = FALSE;
-        printCheckList();
+        printNeighborList();
       }
       else
       {
