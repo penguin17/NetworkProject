@@ -64,7 +64,22 @@ implementation{
    }
 
  ////////////////////////////////////////////
-   
+   event void periodicTimer.fired()
+    {
+      uint8_t wow[2];
+      wow[0] = 'W';
+      wow[1] = 'O';
+      
+      
+      makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
+      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      //printTime = TRUE;
+    
+      //printNeighbors();
+      //deleteNeighbors();
+      //printTime = FALSE;
+      
+    }
   ////////////////////////////////////////////
 
 
