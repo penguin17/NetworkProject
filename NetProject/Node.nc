@@ -119,9 +119,6 @@ implementation{
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
 
-            makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-            call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-
             if (myMsg->dest == TOS_NODE_ID)
             {
               // This is when the flooding of a packet has finally led it to it's final destination
@@ -129,34 +126,13 @@ implementation{
               dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
               dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
             }
-         }
-         else if (myMsg->protocol == PROTOCOL_PINGREPLY)
-         {
-            if (myMsg->dest == TOS_NODE_ID)
-            {
-              // This is the section for when the message that's been sent out to check for neighbors
-              // has been sent back to the original sender and now the original sender is trying to 
-              // add to the neighbor list
-
-              int i = 0;
-
-              for(i = 0; i < call NeighborList.size(); i++)
-              {
-                if (call NeighborList.get(i) == myMsg->src)
-                  return msg;
-              } 
-              call NeighborList.pushfront(myMsg->src);
-            }
             else
             {
-              // This is when a signal has been received for checking of neighbors and the neighbor is preparing to send 
-              // back a signal to let know that they are a neighbor of the sender.
-
-              makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              call Sender.send(sendPackage, myMsg->src);
-              //dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);   
+              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
             }
          }
+         
          return msg;
       }
       dbg(GENERAL_CHANNEL, "Unknown Packet Type %d\n", len);
