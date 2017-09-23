@@ -86,7 +86,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic(100);
+         call periodicTimer.startOneShot(50);
       }else{
          //Retry until successful
          call AMControl.start();
@@ -137,14 +137,15 @@ implementation{
          {
               int size = call NeighborList.size();
               int i = 0;
-            if(myMsg->src != 1)
-            dbg(FLOODING_CHANNEL,"received pingreply\n");
+            
+            //dbg(FLOODING_CHANNEL,"received pingreply\n");
               for (i = 0; i < size; i++)
               {
                 if (call NeighborList.get(i) == myMsg->src)
                   return msg;
               }
 
+              dbg(FLOODING_CHANNEL,"%d received from %d\n",TOS_NODE_ID,myMsg->src);
               call NeighborList.pushfront(myMsg->src);
          }
          
