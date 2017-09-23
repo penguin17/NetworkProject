@@ -86,7 +86,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic( 150 );
+         call periodicTimer.startPeriodic( 100 );
       }else{
          //Retry until successful
          call AMControl.start();
@@ -110,8 +110,10 @@ implementation{
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
 
-         if (call Hash.get(myMsg->src) < myMsg->seq)
+         if (call Hash.get(myMsg->src) < myMsg->seq && myMsg->protocol != PROTOCOL_PINGREPLY)
          {
+           // This is what causes the flooding 
+
             //dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
 
             call Hash.remove(myMsg->src);
@@ -119,29 +121,41 @@ implementation{
 
             makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
             call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-         }
 
-         if (myMsg->dest == TOS_NODE_ID && myMsg->protocol != PROTOCOL_PINGREPLY)
-         {
-           dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
-           dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
-         }
-         else if (myMsg->protocol == PROTOCOL_PINGREPLY && myMsg->dest != TOS_NODE_ID)
-         {
-           makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-           call Sender.send(sendPackage, myMsg->src);
-           //dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);           
-         }
-         else if (myMsg->protocol == PROTOCOL_PINGREPLY && myMsg->dest == TOS_NODE_ID)
-         {
-           int i = 0;
+            if (myMsg->dest == TOS_NODE_ID)
+            {
+              // This is when the flooding of a packet has finally led it to it's final destination
 
-           for(i = 0; i < call NeighborList.size(); i++)
-           {
-             if (call NeighborList.get(i) == myMsg->src)
-              return msg;
-           } 
-           call NeighborList.pushfront(myMsg->src);
+              dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
+              dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+            }
+         }
+         else if (myMsg->protocol == PROTOCOL_PINGREPLY)
+         {
+            if (myMsg->dest == TOS_NODE_ID)
+            {
+              // This is the section for when the message that's been sent out to check for neighbors
+              // has been sent back to the original sender and now the original sender is trying to 
+              // add to the neighbor list
+
+              int i = 0;
+
+              for(i = 0; i < call NeighborList.size(); i++)
+              {
+                if (call NeighborList.get(i) == myMsg->src)
+                  return msg;
+              } 
+              call NeighborList.pushfront(myMsg->src);
+            }
+            else
+            {
+              // This is when a signal has been received for checking of neighbors and the neighbor is preparing to send 
+              // back a signal to let know that they are a neighbor of the sender.
+
+              makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              call Sender.send(sendPackage, myMsg->src);
+              //dbg(FLOODING_CHANNEL,"Packet from %d is still being flooded to %d\n", myMsg->src,TOS_NODE_ID);   
+            }
          }
          return msg;
       }
