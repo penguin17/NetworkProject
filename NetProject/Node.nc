@@ -51,6 +51,18 @@ implementation{
      }
    }
 
+   void printCheckList()
+   {
+    int i = 0;
+
+     dbg(NEIGHBOR_CHANNEL,"CheckList for node %d\n",TOS_NODE_ID);
+
+     for(i = 0; i < call CheckList.size(); i++)
+     {
+        dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call CheckList.get(i));
+     }
+   }
+
    void deleteCheckList()
    {
      while(!call CheckList.isEmpty())
@@ -99,7 +111,7 @@ implementation{
       if (printTime)
       {
         printTime = FALSE;
-        printNeighbors();
+        printCheckList();
       }
       else
       {
