@@ -96,6 +96,8 @@ implementation{
     {
       call NeighborList.pushfront(call CheckList.get(i));
     }
+    
+    deleteCheckList();
   }
  ////////////////////////////////////////////
    event void periodicTimer.fired()
