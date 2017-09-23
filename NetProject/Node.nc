@@ -73,9 +73,20 @@ implementation{
       
       makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      
+      if (printTime)
+      {
+        printTime = FALSE;
+        printNeighbors();
+      }
+      else
+      {
+        printTime = TRUE;
+      }
+
       //printTime = TRUE;
     
-      printNeighbors();
+      //printNeighbors();
       //deleteNeighbors();
       //printTime = FALSE;
       
@@ -86,7 +97,7 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic(50000);
+         call periodicTimer.startPeriodic(25000);
       }else{
          //Retry until successful
          call AMControl.start();
