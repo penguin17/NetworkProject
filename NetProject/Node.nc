@@ -82,7 +82,7 @@ implementation{
 
     for (i = 0; i < call CheckList.size(); i++)
     {
-      call NeighborList.insert(call CheckList.get(i));
+      call NeighborList.pushfront(call CheckList.get(i));
     }
   }
  ////////////////////////////////////////////
