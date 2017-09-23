@@ -137,7 +137,7 @@ implementation{
          {
               int size = call NeighborList.size();
               int i = 0;
-
+            dbg(FLOODING_CHANNEL,"received pingreply\n");
               for (i = 0; i < size; i++)
               {
                 if (call NeighborList.get(i) == myMsg->src)
