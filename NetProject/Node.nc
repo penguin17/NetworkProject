@@ -100,9 +100,9 @@ implementation{
 
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-         dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
+         //dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
 
-         dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+         //dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
 
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
@@ -111,7 +111,7 @@ implementation{
          {
            // This is what causes the flooding 
 
-            dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d",TOS_NODE_ID);
+            //dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d\n",TOS_NODE_ID);
 
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
@@ -126,9 +126,33 @@ implementation{
             else
             {
               //makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
+              
               makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               call Sender.send(sendPackage, AM_BROADCAST_ADDR);
             }
+         }
+         else if (myMsg->protocol == PROTOCOL_PINGREPLY)
+         {
+           if (myMsg->dest == TOS_NODE_ID)
+           {
+              int size = call NeighborList.size();
+              int i = 0;
+
+              for (i = 0; i < size; i++)
+              {
+                if (call NeighborList.get(i) == myMsg->src)
+                  return msg;
+              }
+
+              call NeighborList.pushfront(myMsg->src);
+           }
+           else
+           {
+              // Message has been received to send back
+
+              makePack(&sendPackage, TOS_NODE_ID, myMsg->src, 0, PROTOCOL_PINGREPLY, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+           }
          }
          
          return msg;
