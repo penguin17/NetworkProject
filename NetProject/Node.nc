@@ -145,7 +145,7 @@ implementation{
                   return msg;
               }
 
-              dbg(FLOODING_CHANNEL,"%d received from %d\n",TOS_NODE_ID,myMsg->src);
+              //dbg(FLOODING_CHANNEL,"%d received from %d\n",TOS_NODE_ID,myMsg->src);
               call NeighborList.pushfront(myMsg->src);
          }
          
@@ -169,15 +169,7 @@ implementation{
 
    event void CommandHandler.printNeighbors()
    {
-     int i = 0;
-
-     dbg(NEIGHBOR_CHANNEL,"List of neighbors for node %d\n",TOS_NODE_ID);
-
-     for(i = 0; i < call NeighborList.size(); i++)
-     {
-        dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call NeighborList.get(i));
-     }
-
+      printNeighbors();
    }
 
    event void CommandHandler.printRouteTable(){}
