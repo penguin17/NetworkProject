@@ -110,7 +110,7 @@ implementation{
             }
             else
             {
-              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               call Sender.send(sendPackage, AM_BROADCAST_ADDR);
             }
          }
