@@ -141,6 +141,7 @@ def main():
     s.ping(1, 3, "Hi!");
     s.runTime(20);
     
+    i=0;
     for i in range(1, s.numMote+1):
             s.neighborDMP(i);
 
