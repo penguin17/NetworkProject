@@ -86,14 +86,16 @@ implementation{
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         
+         call periodicTimer.startPeriodic(100);
       }else{
          //Retry until successful
          call AMControl.start();
       }
    }
 
-   event void AMControl.stopDone(error_t err){}
+   event void AMControl.stopDone(error_t err){
+     printNeighbors();
+   }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
       dbg(GENERAL_CHANNEL, "Packet Received\n");
