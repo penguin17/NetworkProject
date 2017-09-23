@@ -70,18 +70,15 @@ implementation{
       wow[0] = 'W';
       wow[1] = 'O';
       
-      if (!printTime)
-      {
-        makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
-        call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-        printTime = TRUE;
-      }
-      else
-      {
-        printNeighbors();
-        deleteNeighbors();
-        printTime = FALSE;
-      }
+      
+      makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
+      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      //printTime = TRUE;
+    
+      //printNeighbors();
+      //deleteNeighbors();
+      //printTime = FALSE;
+      
     }
   ////////////////////////////////////////////
 
@@ -96,7 +93,10 @@ implementation{
       }
    }
 
-   event void AMControl.stopDone(error_t err){}
+   event void AMControl.stopDone(error_t err)
+   {
+     printNeighbors();
+   }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
       //dbg(GENERAL_CHANNEL, "Packet Received\n");
