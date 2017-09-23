@@ -55,7 +55,7 @@ implementation{
    {
     int i = 0;
 
-     dbg(NEIGHBOR_CHANNEL,"CheckList for node %d\n",TOS_NODE_ID);
+     dbg(NEIGHBOR_CHANNEL,"Neighbors for node %d\n",TOS_NODE_ID);
 
      for(i = 0; i < call CheckList.size(); i++)
      {
@@ -113,7 +113,7 @@ implementation{
       if (printTime)
       {
         printTime = FALSE;
-        printNeighbors();
+        printCheckList();
       }
       else
       {
@@ -142,7 +142,7 @@ implementation{
    }
 
    event void AMControl.stopDone(error_t err){
-     printNeighbors();
+     printCheckList();
    }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
@@ -211,20 +211,13 @@ implementation{
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
       call Hash.insert(TOS_NODE_ID,sequence);
-      printNeighbors();
+      //printNeighbors();
       sequence = sequence + 1;
    }
 
    event void CommandHandler.printNeighbors()
    {
-      int i = 0;
-
-     dbg(NEIGHBOR_CHANNEL,"List of neighbors for node %d\n",TOS_NODE_ID);
-
-     for(i = 0; i < call NeighborList.size(); i++)
-     {
-        dbg(NEIGHBOR_CHANNEL,"Node: %d\n",call NeighborList.get(i));
-     }
+      printCheckList();
    }
 
    event void CommandHandler.printRouteTable(){}
