@@ -6,7 +6,12 @@
  * @date   2013/09/03
  *
  */
+ // Stuff to Check
+ // Appropriate channels are being called and that more flooding isn't occurring
+ 
 #include <Timer.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "includes/command.h"
 #include "includes/packet.h"
 #include "includes/CommandMsg.h"
@@ -120,21 +125,17 @@ implementation{
         printTime = TRUE;
         compareLists();
       }
-
-      //printTime = TRUE;
-    
-      //printNeighbors();
-      //deleteNeighbors();
-      //printTime = FALSE;
       
     }
   ////////////////////////////////////////////
 
 
    event void AMControl.startDone(error_t err){
+      time_t t;
       if(err == SUCCESS){
+         srand((unsigned) time(&t));
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic(100000);
+         call periodicTimer.startPeriodic(rand()%100000);
       }else{
          //Retry until successful
          call AMControl.start();
@@ -152,16 +153,18 @@ implementation{
          pack* myMsg=(pack*) payload;
          //dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
 
-         //dbg(FLOODING_CHANNEL, "Packet being flooded to %d\n",myMsg->dest);
+
+         myMsg->TTL = myMsg->TTL - 1;
 
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
 
+         if (myMsg->TTL == 0)
+              return msg;
+
          if (call Hash.get(myMsg->src) < myMsg->seq && myMsg->protocol != PROTOCOL_PINGREPLY)
          {
            // This is what causes the flooding 
-
-            //dbg(FLOODING_CHANNEL,"Packet is new and hasn't been seen before by node %d\n",TOS_NODE_ID);
 
             call Hash.remove(myMsg->src);
             call Hash.insert(myMsg->src,myMsg->seq);
@@ -186,14 +189,14 @@ implementation{
               int size = call CheckList.size();
               int i = 0;
             
-            //dbg(FLOODING_CHANNEL,"received pingreply\n");
+            
               for (i = 0; i < size; i++)
               {
                 if (call CheckList.get(i) == myMsg->src)
                   return msg;
               }
 
-              //dbg(FLOODING_CHANNEL,"%d received from %d\n",TOS_NODE_ID,myMsg->src);
+             
               call CheckList.pushfront(myMsg->src);
          }
          
@@ -207,11 +210,11 @@ implementation{
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
       
-      makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
+      makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
       call Hash.insert(TOS_NODE_ID,sequence);
-      //printNeighbors();
+  
       sequence = sequence + 1;
    }
 
