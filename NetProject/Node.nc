@@ -112,7 +112,7 @@ implementation{
       wow[1] = 'O';
       
       
-      makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_PINGREPLY, -1, wow, PACKET_MAX_PAYLOAD_SIZE);
+      makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_NEIGHBORDISC, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
       if (printTime)
@@ -147,11 +147,9 @@ implementation{
    }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-      //dbg(GENERAL_CHANNEL, "Packet Received\n");
 
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-         //dbg(GENERAL_CHANNEL, "Packet received from %d\n",myMsg->src);
 
 
          myMsg->TTL = myMsg->TTL - 1;
@@ -159,10 +157,8 @@ implementation{
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
 
-         if (myMsg->TTL == 0)
-              return msg;
 
-         if (call Hash.get(myMsg->src) < myMsg->seq && myMsg->protocol != PROTOCOL_PINGREPLY)
+         if (call Hash.get(myMsg->src) < myMsg->seq && myMsg->protocol != PROTOCOL_NEIGHBORDISC)
          {
            // This is what causes the flooding 
 
@@ -171,21 +167,38 @@ implementation{
 
             if (myMsg->dest == TOS_NODE_ID)
             {
-              // This is when the flooding of a packet has finally led it to it's final destination
-
               dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,TOS_NODE_ID);
               dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+
+              if (myMsg->protocol == PROTOCOL_PINGREPLY)
+              {
+              	dbg(FLOODING_CHANNEL, "Message Acceptance from %d received",myMsg->src);
+              }
+              else
+              {
+              	dbg(FLOODING_CHANNEL, "Message being sent to %d for aknowledgement of message received by %d\n",myMsg->src,myMsg->dest);
+              	makePack(&sendPackage, myMsg->dest, myMsg->src, myMsg->TTL, PROTOCOL_PINGREPLY, sequence, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              	call Hash.insert(TOS_NODE_ID,sequence);
+              	sequence = sequence + 1;
+              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+              }
+
             }
             else
             {
-              //makePack(&sendPackage, TOS_NODE_ID, destination, 0, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
-              
-              makePack(&sendPackage, myMsg->src, myMsg->dest, 0, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+              if (myMsg->TTL <= 0)
+              	return msg;
+              else
+              {
+              	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, PROTOCOL_PING, myMsg->seq, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+              }
             }
          }
-         else if (myMsg->protocol == PROTOCOL_PINGREPLY)
+         else if (myMsg->protocol == PROTOCOL_NEIGHBORDISC)
          {
+         	if (myMsg->dest == TOS_NODE_ID)
+         	{
               int size = call CheckList.size();
               int i = 0;
             
@@ -198,6 +211,12 @@ implementation{
 
              
               call CheckList.pushfront(myMsg->src);
+            }
+            else
+            {
+            	makePack(&sendPackage, TOS_NODE_ID, myMsg->src, myMsg->TTL, PROTOCOL_NEIGHBORDISC, 0, &myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+            }
          }
          
          return msg;
