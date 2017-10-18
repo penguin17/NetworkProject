@@ -164,8 +164,15 @@ implementation{
 
   	int i = 0, j = 0;
 
-  	for (i = 0; i < 20; i++)
-  		derp[i] = '*';
+  	sprintf(temp,"%d*",call NeighborList.size());
+  	tempSize = strlen(temp);
+
+  	for (i = 0; i < tempSize; i++)
+  	{
+  		derp[currSize+i] = temp[i];
+  	}
+
+  	currSize = currSize + tempSize;
 
   	dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
 
@@ -180,9 +187,6 @@ implementation{
   		}
 
   		currSize = currSize + tempSize;
-
-  		if (TOS_NODE_ID == 19)
-  			dbg(GENERAL_CHANNEL,"tempSize = %d for i = %d\n",tempSize,i);
   	}
 
   	dbg(GENERAL_CHANNEL,"The derp message being sent = %s\n",derp);
@@ -218,6 +222,7 @@ implementation{
   {
   	int arr[NEIGHBOR_MAX];
   	int count = 0;
+  	int size = 100;
   	int val = 0;
   	uint8_t *p = neighbors;
 
@@ -231,9 +236,17 @@ implementation{
   	map[currentMaxNode].ID = source;
   	map[currentMaxNode].currMaxNeighbors = -1;
 
-  	while(*p)
+  	while(count < size)
   	{
-  		if(isdigit(*p))
+  		if(isdigit(*p) && count == 0)
+  		{
+  			size = strtol(p,&p,10);
+
+  			size = size + 1;
+
+  			count++;
+  		}
+  		else if(isdigit(*p))
   		{
   			val = strtol(p,&p,10);
 
@@ -246,6 +259,8 @@ implementation{
   			map[currentMaxNode].neighbors[map[currentMaxNode].currMaxNeighbors] = val;
   			
   			//dbg(GENERAL_CHANNEL,"%d\n",val);
+
+  			count++;
   		}
   		else
   		{
@@ -285,6 +300,7 @@ implementation{
       {
       	updateNeighbors();
       	sendNeighbors();
+      	printGraph();
       }
 
     }
@@ -393,17 +409,17 @@ implementation{
          }
          else if (myMsg->protocol == PROTOCOL_LINKSTATE && call Hash.get(myMsg->src) < myMsg->seq)
          {
-         /*
+         
          	if(containInTopology(myMsg->src))
          	{
          		deleteFromTopology(myMsg->src);
-         		addToTopology(myMsg->src,myMsg->payload);
+         		//addToTopology(myMsg->src,myMsg->payload);
          	}
          	else
          	{
          		addToTopology(myMsg->src,myMsg->payload);
          	}
-         */
+         
          }
          
          return msg;
