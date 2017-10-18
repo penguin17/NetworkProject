@@ -17,6 +17,8 @@ implementation {
     components MainC;
     components Node;
     components new HashmapC(int,100) as HashC;
+    components new HashmapC(int,100) as HashC2;
+    components new HashmapC(int,100) as HashC3;
     components new ListC(int,100) as List;
     components new ListC(int,100) as List2;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
@@ -27,6 +29,8 @@ implementation {
     Node.Receive -> GeneralReceive;
 
     Node.Hash -> HashC;
+    Node.CostMap -> HashC2;
+    Node.NeighborMap -> HashC3;
     Node.NeighborList -> List;
     Node.CheckList->List2;
 
