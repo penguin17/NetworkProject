@@ -700,16 +700,16 @@ implementation{
               }
               else
               {
-              	dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,myMsg->dest);
+              	dbg(FLOODING_CHANNEL, "Packet has finally gone to correct location, from:to, %d:%d\n", myMsg->src,myMsg->dest);
               	dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
               	dbg(FLOODING_CHANNEL, "Message being sent to %d for aknowledgement of message received by %d\n",myMsg->src,myMsg->dest);
               	makePack(&sendPackage, myMsg->dest, myMsg->src, myMsg->TTL, PROTOCOL_PINGREPLY, sequence, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               	call Hash.insert(TOS_NODE_ID,sequence);
               	sequence = sequence + 1;
 
-              	if (myMsg->src == AM_BROADCAST_ADDR || !call CostMap.contains(myMsg->src) || call CostMap.get(myMsg->src) == COST_MAX)
+              	if (myMsg->src == AM_BROADCAST_ADDR)
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-	          	else
+	          	else if (call CostMap.contains(myMsg->src) && !call CostMap.get(myMsg->src) == COST_MAX)
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->src);
 	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
@@ -724,13 +724,13 @@ implementation{
 
 	          	//dbg(GENERAL_CHANNEL, "Package arrived to possibly be put to sent to a port\n");
 	          	
-	          	if (myMsg->dest == AM_BROADCAST_ADDR || !call CostMap.contains(myMsg->dest) || call CostMap.get(myMsg->dest) == COST_MAX)
+	          	if (myMsg->dest == AM_BROADCAST_ADDR)
 	          	{
 	          		//dbg(GENERAL_CHANNEL, "Package being sent to %d\n",myMsg->dest);
 	          		//printCostMap();
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 	          	}
-	          	else
+	          	else if (call CostMap.contains(myMsg->dest) && !call CostMap.get(myMsg->dest) == COST_MAX))
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->dest);
 	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
