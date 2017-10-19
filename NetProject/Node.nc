@@ -329,32 +329,66 @@ implementation{
 
   	int i = 0, j = 0;
 
-  	sprintf(temp,"%d*",call NeighborList.size());
-  	tempSize = strlen(temp);
-
-  	for (i = 0; i < tempSize; i++)
+  	if (neighborChange())
   	{
-  		derp[currSize+i] = temp[i];
-  	}
 
-  	currSize = currSize + tempSize;
+  		updateNeighbors();
 
-  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
+	  	sprintf(temp,"%d*",call NeighborList.size());
+	  	tempSize = strlen(temp);
 
-  	for (i = 0; i < call NeighborList.size(); i++)
-  	{
-  		sprintf(temp,"%d*",call NeighborList.get(i));
-  		tempSize = strlen(temp);
-  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
-  		for(j = 0; j < tempSize; j++)
-  		{
-  			derp[currSize+j] = temp[j];
-  		}
+	  	for (i = 0; i < tempSize; i++)
+	  	{
+	  		derp[currSize+i] = temp[i];
+	  	}
 
-  		currSize = currSize + tempSize;
-  	}
+	  	currSize = currSize + tempSize;
 
-  	addToTopology(TOS_NODE_ID,der);
+	  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
+
+	  	for (i = 0; i < call NeighborList.size(); i++)
+	  	{
+	  		sprintf(temp,"%d*",call NeighborList.get(i));
+	  		tempSize = strlen(temp);
+	  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
+	  		for(j = 0; j < tempSize; j++)
+	  		{
+	  			derp[currSize+j] = temp[j];
+	  		}
+
+	  		currSize = currSize + tempSize;
+	  	}
+
+	  	
+	  	addToTopology(TOS_NODE_ID,der);
+	}
+	else
+	{
+		sprintf(temp,"%d*",call NeighborList.size());
+	  	tempSize = strlen(temp);
+
+	  	for (i = 0; i < tempSize; i++)
+	  	{
+	  		derp[currSize+i] = temp[i];
+	  	}
+
+	  	currSize = currSize + tempSize;
+
+	  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
+
+	  	for (i = 0; i < call NeighborList.size(); i++)
+	  	{
+	  		sprintf(temp,"%d*",call NeighborList.get(i));
+	  		tempSize = strlen(temp);
+	  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
+	  		for(j = 0; j < tempSize; j++)
+	  		{
+	  			derp[currSize+j] = temp[j];
+	  		}
+
+	  		currSize = currSize + tempSize;
+	  	}
+	}
 
 	makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
@@ -447,9 +481,20 @@ implementation{
 
   void deleteFromTopology(int source)
   {
-  	// FILL IN
+  	int i = 0;
+
+  	for (i = 0; i < call myMap.size(); i++)
+  	{
+  		map = call myMap.get(i);
+
+  		//if (map.ID == source)
+
+  	}
   }
-  
+  bool statusJoin()
+  {
+
+  }
   bool containInTopology(int source)
   {
   	int i = 0;
@@ -514,8 +559,8 @@ implementation{
   	 	break;
   	 }
 
-
-  	 if (TOS_NODE_ID == 19)
+/*
+  	 if (TOS_NODE_ID == 1)
   	 {
   	 	int i = 0;
   	 	
@@ -534,6 +579,7 @@ implementation{
   	 	} 
 
   	 }
+*/
  
   }
   
@@ -549,13 +595,15 @@ implementation{
       makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_NEIGHBORDISC, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
-     
+    /* 
       if (neighborChange())
       {
       	updateNeighbors();
-      	sendNeighbors();
+      	//sendNeighbors();
       	//printNeighbors();
       }
+    */
+      sendNeighbors();
 
     }
   ////////////////////////////////////////////
@@ -593,54 +641,7 @@ implementation{
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
 
-         /*
-         if (myMsg->dest != AM_BROADCAST_ADDR && call RoutingMap.contains(myMsg->dest))
-         {
-         	// This is where the main routing would go
-
-         	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->TTL, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-            call Sender.send(sendPackage, portCalc(myMsg->dest);
-
-         }
-         */
-         if (call Hash.get(myMsg->src) < myMsg->seq && myMsg->protocol != PROTOCOL_NEIGHBORDISC && myMsg->protocol != PROTOCOL_LINKSTATE)
-         {
-           // This is what causes the flooding 
-
-            call Hash.remove(myMsg->src);
-            call Hash.insert(myMsg->src,myMsg->seq);
-
-            if (myMsg->dest == TOS_NODE_ID)
-            {
-
-              if (myMsg->protocol == PROTOCOL_PINGREPLY)
-              {
-              	dbg(FLOODING_CHANNEL, "Message Acceptance from %d received\n",myMsg->src);
-              }
-              else
-              {
-              	dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,myMsg->dest);
-              	dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
-              	dbg(FLOODING_CHANNEL, "Message being sent to %d for aknowledgement of message received by %d\n",myMsg->src,myMsg->dest);
-              	makePack(&sendPackage, myMsg->dest, myMsg->src, myMsg->TTL, PROTOCOL_PINGREPLY, sequence, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              	call Hash.insert(TOS_NODE_ID,sequence);
-              	sequence = sequence + 1;
-              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-              }
-
-            }
-            else
-            {
-              if (myMsg->TTL <= 0)
-              	return msg;
-              else
-              {
-              	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-              }
-            }
-         }
-         else if (myMsg->protocol == PROTOCOL_NEIGHBORDISC)
+         if (myMsg->protocol == PROTOCOL_NEIGHBORDISC)
          {
          	if (myMsg->dest == TOS_NODE_ID)
          	{
@@ -663,17 +664,72 @@ implementation{
               	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
             }
          }
-         else if (myMsg->protocol == PROTOCOL_LINKSTATE && call Hash.get(myMsg->src) < myMsg->seq)
+
+         if (call Hash.get(myMsg->src) >= myMsg->seq || myMsg->TTL <= 0)
+         	return msg;
+
+         call Hash.remove(myMsg->src);
+         call Hash.insert(myMsg->src,myMsg->seq);
+         
+         if (myMsg->protocol == PROTOCOL_PING || myMsg->protocol == PROTOCOL_PINGREPLY)
          {
-         	call Hash.remove(myMsg->src);
-            call Hash.insert(myMsg->src,myMsg->seq);
+           // This is what causes the flooding 
+
+            if (myMsg->dest == TOS_NODE_ID)
+            {
+
+              if (myMsg->protocol == PROTOCOL_PINGREPLY)
+              {
+              	dbg(FLOODING_CHANNEL, "Message Acceptance from %d received\n",myMsg->src);
+              }
+              else
+              {
+              	dbg(FLOODING_CHANNEL, "Packet has finally flooded to correct location, from:to, %d:%d\n", myMsg->src,myMsg->dest);
+              	dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+              	dbg(FLOODING_CHANNEL, "Message being sent to %d for aknowledgement of message received by %d\n",myMsg->src,myMsg->dest);
+              	makePack(&sendPackage, myMsg->dest, myMsg->src, myMsg->TTL, PROTOCOL_PINGREPLY, sequence, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              	call Hash.insert(TOS_NODE_ID,sequence);
+              	sequence = sequence + 1;
+
+              	if (myMsg->src == AM_BROADCAST_ADDR || !call CostMap.contains(myMsg->src) || call CostMap.get(myMsg->src) == COST_MAX)
+	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+	          	else
+	          	{
+	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->src);
+	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
+	          	}
+              
+              }
+
+            }
+            else
+            {
+	          	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+
+	          	//dbg(GENERAL_CHANNEL, "Package arrived to possibly be put to sent to a port\n");
+	          	
+	          	if (myMsg->dest == AM_BROADCAST_ADDR || !call CostMap.contains(myMsg->dest) || call CostMap.get(myMsg->dest) == COST_MAX)
+	          	{
+	          		//dbg(GENERAL_CHANNEL, "Package being sent to %d\n",myMsg->dest);
+	          		//printCostMap();
+	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+	          	}
+	          	else
+	          	{
+	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->dest);
+	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
+	          	}
+            }
+         }
+         else if (myMsg->protocol == PROTOCOL_LINKSTATE)
+         {
 
          	if(containInTopology(myMsg->src))
          	{
          		//deleteFromTopology(myMsg->src);
          		//addToTopology(myMsg->src,myMsg->payload);
-         		dbg(GENERAL_CHANNEL,"It's already in topology\n");
-         		dbg(GENERAL_CHANNEL,"%d sent payload:\n%s\n",myMsg->src,myMsg->payload);
+         		//dbg(GENERAL_CHANNEL,"It's already in topology\n");
+         		//dbg(GENERAL_CHANNEL,"%d sent payload:\n%s\n",myMsg->src,myMsg->payload);
 
          	}
          	else
@@ -685,11 +741,26 @@ implementation{
 
          		//printGraph();
 
+         		//printCostMap();
+
          		makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
          	}
          
          }
+
+         /*
+         if (myMsg->dest != AM_BROADCAST_ADDR && call RoutingMap.contains(myMsg->dest))
+         {
+         	// This is where the main routing would go
+
+         	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->TTL, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+            call Sender.send(sendPackage, portCalc(myMsg->dest);
+
+         }
+         */
+         
+         
          
          return msg;
       }
@@ -702,8 +773,15 @@ implementation{
       dbg(GENERAL_CHANNEL, "PING EVENT \n");
       
       makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
-      call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+      //call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
+      if (destination == AM_BROADCAST_ADDR || !call CostMap.contains(destination) || call CostMap.get(destination) == COST_MAX)
+	  	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+	  else
+	  {
+	   	//dbg(GENERAL_CHANNEL,"Routing being used\n");
+	   	call Sender.send(sendPackage, portCalc(destination));
+      }
       call Hash.insert(TOS_NODE_ID,sequence);
   
       sequence = sequence + 1;

@@ -137,9 +137,11 @@ def main():
 
     s.runTime(100);
     s.ping(1, 2, "Hello, World");
-    s.runTime(10);
+    s.runTime(100);
     s.ping(1, 3, "Hi!");
-    s.runTime(20);
+    s.runTime(40);
+    s.ping(1,19, "Wowzers!");
+    s.runTime(40);
     
     i=0;
     for i in range(1, s.numMote+1):
