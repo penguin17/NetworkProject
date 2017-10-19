@@ -37,6 +37,8 @@ module Node{
 
    uses interface Hashmap<int> as RoutingMap;
 
+   uses interface Hashmap<linkstate> as tempMap;
+
    uses interface SimpleSend as Sender;
 
    uses interface CommandHandler;
@@ -166,6 +168,7 @@ implementation{
    	 call ExpandedList.pushfront(node);
    }
 
+   
    bool containsExpanded(int node)
    {
    	 // Fill in
@@ -483,13 +486,28 @@ implementation{
   {
   	int i = 0;
 
-  	for (i = 0; i < call myMap.size(); i++)
+  	uint32_t *keys;
+
+  	map = call myMap.popfront();
+
+  	while(map.ID != source)
   	{
-  		map = call myMap.get(i);
+  		call tempMap.insert(map.ID,map);
 
-  		//if (map.ID == source)
-
+  		map = call myMap.popfront();
   	}
+
+  	while(!call tempMap.isEmpty())
+   	 {
+   	 	keys = call tempMap.getKeys();
+
+   	 	map = call tempMap.get(*keys);
+
+   	 	call myMap.pushfront(map);
+
+   	 	call tempMap.remove(*keys);
+   	 }
+
   }
   bool statusJoin()
   {
@@ -726,8 +744,8 @@ implementation{
 
          	if(containInTopology(myMsg->src))
          	{
-         		//deleteFromTopology(myMsg->src);
-         		//addToTopology(myMsg->src,myMsg->payload);
+         		deleteFromTopology(myMsg->src);
+         		addToTopology(myMsg->src,myMsg->payload);
          		//dbg(GENERAL_CHANNEL,"It's already in topology\n");
          		//dbg(GENERAL_CHANNEL,"%d sent payload:\n%s\n",myMsg->src,myMsg->payload);
 
