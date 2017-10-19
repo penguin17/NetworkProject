@@ -413,11 +413,11 @@ implementation{
   	{
   		map = call myMap.get(i);
 
-  		dbg(GENERAL_CHANNEL,"Neighbors for node: %d\n",map.ID);
+  		dbg(GENERAL_CHANNEL,"	Neighbors for node: %d\n",map.ID);
 
   		for (j = 0; j <= map.currMaxNeighbors; j++)
   		{
-  			dbg(GENERAL_CHANNEL,"%d\n",map.neighbors[j]);
+  			dbg(GENERAL_CHANNEL,"	%d\n",map.neighbors[j]);
   		}
   	}
   }
@@ -560,7 +560,7 @@ implementation{
 
   	 //dbg(GENERAL_CHANNEL,"Current max size = %d\n",currentMaxNode + 1);
 
-  	 if (fullyExpanded() && TOS_NODE_ID == 1)
+  	 if (fullyExpanded())
   	 	dbg(GENERAL_CHANNEL,"fully expanded before even entering the for loop\n");
 
   	 while(!fullyExpanded())
@@ -572,9 +572,7 @@ implementation{
   	 	else
   	 		expand(n);
   	 	
-  	 	count++;
-  	 	if(count > 50)
-  	 	break;
+  	 	
   	 }
 
 /*
@@ -810,9 +808,25 @@ implementation{
       printCheckList();
    }
 
-   event void CommandHandler.printRouteTable(){}
+   event void CommandHandler.printRouteTable()
+   {
+   	 uint32_t *keys = call RoutingMap.getKeys();
 
-   event void CommandHandler.printLinkState(){}
+   	 dbg(ROUTING_CHANNEL,"Routing table for node : %d",TOS_NODE_ID);
+
+   	 while(*keys)
+   	 {
+   	 	dbg(ROUTING_CHANNEL,"	For node %d, it has next hop of %d",*keys,call RoutingMap.get(*keys));
+   	 	keys++;
+   	 }
+   }
+
+   event void CommandHandler.printLinkState()
+   {
+   	 dbg(ROUTING_CHANNEL,"Link map state for node : %d",TOS_NODE_ID);
+
+   	 printGraph();
+   }
 
    event void CommandHandler.printDistanceVector(){}
 

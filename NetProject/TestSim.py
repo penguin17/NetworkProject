@@ -7,10 +7,12 @@ import sys
 from TOSSIM import *
 from CommandMsg import *
 
+
 class TestSim:
     # COMMAND TYPES
     CMD_PING = 0
     CMD_NEIGHBOR_DUMP = 1
+    CMD_LINK_DUMP=2
     CMD_ROUTE_DUMP=3
 
     # CHANNELS - see includes/channels.h
@@ -118,7 +120,10 @@ class TestSim:
         self.sendCMD(self.CMD_NEIGHBOR_DUMP, destination, "neighbor command");
 
     def routeDMP(self, destination):
-        self.sendCMD(self.CMD_ROUTE_DUMP, destination, "routing command");
+        self.sendCMD(2, destination, "routing command");
+
+    def mapDMP(self,destination):
+        self.sendCMD(3,destination,"map command");
 
     def addChannel(self, channelName, out=sys.stdout):
         print 'Adding Channel', channelName;
@@ -135,13 +140,14 @@ def main():
     s.addChannel(s.NEIGHBOR_CHANNEL);
     s.addChannel(s.FLOODING_CHANNEL);
 
-    s.runTime(100);
+    s.runTime(20);
     s.ping(1, 2, "Hello, World");
-    s.runTime(100);
+    s.runTime(20);
     s.ping(1, 3, "Hi!");
     s.runTime(40);
     s.ping(1,19, "Wowzers!");
     s.runTime(40);
+    
     
     i=0;
     for i in range(1, s.numMote+1):
