@@ -10,6 +10,7 @@
 #include <Timer.h>
 #include "includes/CommandMsg.h"
 #include "includes/packet.h"
+#include "includes/LinkState.h"
 
 configuration NodeC{
 }
@@ -21,6 +22,8 @@ implementation {
     components new HashmapC(int,100) as HashC3;
     components new ListC(int,100) as List;
     components new ListC(int,100) as List2;
+    components new ListC(int,100) as List3;
+    components new ListC(linkstate,GRAPH_NODE_MAX) as List4;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
 
@@ -30,9 +33,11 @@ implementation {
 
     Node.Hash -> HashC;
     Node.CostMap -> HashC2;
-    Node.NeighborMap -> HashC3;
+    Node.RoutingMap -> HashC3;
+    Node.ExpandedList -> List3;
     Node.NeighborList -> List;
     Node.CheckList->List2;
+    Node.myMap -> List4;
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
 

@@ -10,6 +10,7 @@
 
 enum{
 	NEIGHBOR_MAX = 50,
+	COST_MAX = 100,
 	GRAPH_NODE_MAX = 100
 };
 
