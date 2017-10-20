@@ -21,6 +21,7 @@ implementation {
     components new HashmapC(int,100) as HashC2;
     components new HashmapC(int,100) as HashC3;
     components new HashmapC(linkstate,100) as HashC4;
+    components new HashmapC(linkstate,100) as HashC5;
     components new ListC(int,100) as List;
     components new ListC(int,100) as List2;
     components new ListC(int,100) as List3;
@@ -36,6 +37,7 @@ implementation {
     Node.CostMap -> HashC2;
     Node.RoutingMap -> HashC3;
     Node.tempMap -> HashC4;
+    Node.transferMap -> HashC5;
     Node.ExpandedList -> List3;
     Node.NeighborList -> List;
     Node.CheckList->List2;

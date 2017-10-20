@@ -39,6 +39,8 @@ module Node{
 
    uses interface Hashmap<linkstate> as tempMap;
 
+   uses interface Hashmap<linkstate> as transferMap;
+
    uses interface SimpleSend as Sender;
 
    uses interface CommandHandler;
@@ -57,6 +59,7 @@ implementation{
    //void calcShortestRoute();
    void addToTopology(int source, uint8_t *neighbors);
    void printGraph();
+   void printCostMap();
    bool containInTopology(int source);
 
    void printNeighbors()
@@ -107,7 +110,7 @@ implementation{
    	 {
    	 	map = call myMap.get(i);
 
-   	 	call RoutingMap.insert(map.ID,NEIGHBOR_MAX);
+   	 	call RoutingMap.insert(map.ID,COST_MAX);
    	 }
    }
 
@@ -134,25 +137,58 @@ implementation{
    	 //dbg(GENERAL_CHANNEL,"Location returning negative 1\n");
    	 //dbg(GENERAL_CHANNEL,"Failed at %d\n",node);
    	 //printGraph();
-   	 return -1;
+   	 return COST_MAX;
    }
    void expand(int node)
    {
    	 int x = loc(node);
    	 int i = 0;
 
+   	 if (x == COST_MAX)
+   	 	dbg(GENERAL_CHANNEL,"x equals COST_MAX from loc function\n");
+
    	 map = call myMap.get(x);
 
-   	 if (map.ID != node && x != -1)
+   	 if (map.ID != node && x != COST_MAX)
    	 	dbg(GENERAL_CHANNEL,"Location not working\n");
 
+   	 if (call CostMap.get(node) == COST_MAX)
+   	 {
+   	 	for (i = 0; i <= map.currMaxNeighbors; i++)
+   	 	{
+   	 		if (!call CostMap.contains(map.neighbors[i]))
+	   	 	{
+	   	 		call CostMap.insert(map.neighbors[i],COST_MAX);
+	   	 		call RoutingMap.insert(map.neighbors[i],COST_MAX);
+
+	   	 		//call CostMap.insert(map.neighbors[i],COST_MAX);
+
+	   	 	}
+	   	 	if (call CostMap.get(node) > (call CostMap.get(map.neighbors[i]) + 1))
+	   	 	{
+	   	 		//dbg(GENERAL_CHANNEL,"%d expanded by %d\n",map[x].neighbors[i],node);
+	   	 		call CostMap.remove(node);
+	   	 		call CostMap.insert(node,call CostMap.get(map.neighbors[i]) + 1);
+
+	   	 		call RoutingMap.remove(node);
+	   	 		call RoutingMap.insert(node,map.neighbors[i]);
+	   	 	}
+	   	}
+	   	call ExpandedList.pushfront(node);
+	   	return;
+   	 }
+
    	 //dbg(GENERAL_CHANNEL,"Size of neighbors at node %d is %d\n",node,map[x].currMaxNeighbors);
+   	 
    	 for (i = 0; i <= map.currMaxNeighbors; i++)
    	 {
    	 	if (!call CostMap.contains(map.neighbors[i]))
    	 	{
-   	 		call ExpandedList.pushfront(map.neighbors[i]);
-   	 		continue;
+   	 		call CostMap.insert(map.neighbors[i],COST_MAX);
+   	 		call RoutingMap.insert(map.neighbors[i],COST_MAX);
+
+   	 		//call CostMap.insert(map.neighbors[i],COST_MAX);
+
    	 	}
    	 	if (call CostMap.get(map.neighbors[i]) > (call CostMap.get(node) + 1))
    	 	{
@@ -187,23 +223,38 @@ implementation{
    {
    	 // Fill in
    	 
+   	 bool search = FALSE;
    	 int i = 0;
    	 int j = 0;
+
+   	 if (call ExpandedList.size() != call myMap.size())
+   	 	return FALSE;
 
    	 for (i = 0; i < call myMap.size(); i++)
    	 {
    	 	map = call myMap.get(i);
 
-   	 	if (call CostMap.get(map.ID) == COST_MAX && !containsExpanded(map.ID))
+   	 	for (j = 0; j < call myMap.size(); j++)
+   	 	{
+   	 		if (map.ID == call ExpandedList.get(j))
+   	 		{
+   	 			search = TRUE;
+   	 			break;
+   	 		}
+   	 	}
+   	 	
+   	 	if(!search)
    	 		return FALSE;
+
+   	 	search = FALSE;
    	 }
 
    	 return TRUE;
    }
-   uint16_t lowestCostNode()
+   uint32_t lowestCostNode()
    {
    	 int lowest = COST_MAX;
-   	 int lowID = -1;
+   	 int lowID = COST_MAX;
    	 int i = 0;
 
    	 for (i = 0; i < call myMap.size(); i++)
@@ -227,10 +278,12 @@ implementation{
    {
    	 // Fill in
 
-   	 if (call RoutingMap.get(node) != TOS_NODE_ID)
-   	 	return portCalc(call RoutingMap.get(node));
-   	 else
+   	 if (call RoutingMap.get(node) == TOS_NODE_ID)
    	 	return node;
+   	 else if (call RoutingMap.get(node) == COST_MAX)
+   	 	return COST_MAX;
+   	 else	
+   	 	portCalc(call RoutingMap.get(node));
    }
 
    void printCheckList()
@@ -332,71 +385,84 @@ implementation{
 
   	int i = 0, j = 0;
 
-  	if (neighborChange())
+  	printNeighbors();
+  	sprintf(temp,"%d*",call NeighborList.size());
+  	printNeighbors();
+  	tempSize = strlen(temp);
+
+  	for (i = 0; i < tempSize; i++)
   	{
+  		derp[currSize+i] = temp[i];
+  	}
 
-  		updateNeighbors();
+  	currSize = currSize + tempSize;
 
-	  	sprintf(temp,"%d*",call NeighborList.size());
-	  	tempSize = strlen(temp);
+  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
 
-	  	for (i = 0; i < tempSize; i++)
-	  	{
-	  		derp[currSize+i] = temp[i];
-	  	}
+  	for (i = 0; i < call NeighborList.size(); i++)
+  	{
+  		sprintf(temp,"%d*",call NeighborList.get(i));
+  		tempSize = strlen(temp);
+  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
+  		for(j = 0; j < tempSize; j++)
+  		{
+  			derp[currSize+j] = temp[j];
+  		}
 
-	  	currSize = currSize + tempSize;
+  		currSize = currSize + tempSize;
+  	}
 
-	  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
+  	
+  	addToTopology(TOS_NODE_ID,der);
 
-	  	for (i = 0; i < call NeighborList.size(); i++)
-	  	{
-	  		sprintf(temp,"%d*",call NeighborList.get(i));
-	  		tempSize = strlen(temp);
-	  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
-	  		for(j = 0; j < tempSize; j++)
-	  		{
-	  			derp[currSize+j] = temp[j];
-	  		}
-
-	  		currSize = currSize + tempSize;
-	  	}
-
-	  	
-	  	addToTopology(TOS_NODE_ID,der);
-	}
-	else
-	{
-		sprintf(temp,"%d*",call NeighborList.size());
-	  	tempSize = strlen(temp);
-
-	  	for (i = 0; i < tempSize; i++)
-	  	{
-	  		derp[currSize+i] = temp[i];
-	  	}
-
-	  	currSize = currSize + tempSize;
-
-	  	//dbg(GENERAL_CHANNEL,"%d is sending link state information\n",TOS_NODE_ID);
-
-	  	for (i = 0; i < call NeighborList.size(); i++)
-	  	{
-	  		sprintf(temp,"%d*",call NeighborList.get(i));
-	  		tempSize = strlen(temp);
-	  		//dbg(GENERAL_CHANNEL,"-- %s\n",temp);
-	  		for(j = 0; j < tempSize; j++)
-	  		{
-	  			derp[currSize+j] = temp[j];
-	  		}
-
-	  		currSize = currSize + tempSize;
-	  	}
-	}
-
+  	dbg(GENERAL_CHANNEL, "******%d is sending out message %s****\n",TOS_NODE_ID,der);
+	
 	makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
 	call Hash.insert(TOS_NODE_ID,sequence);
     call Sender.send(sendPackage, AM_BROADCAST_ADDR);  	
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
+	sequence = sequence + 1;
+	call Hash.insert(TOS_NODE_ID,sequence);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+
+    printCostMap();
   }
 
   void printGraph()
@@ -404,10 +470,8 @@ implementation{
   	int i = 0;
   	int j = 0;
 
-  	if (call myMap.size() < 2)
-  		dbg(GENERAL_CHANNEL, "*****Nothing much to print for the graph*****\n");
-
-  	//dbg(GENERAL_CHANNEL,"Map for %d with size %d\n",TOS_NODE_ID,currentMaxNode+1);
+  	
+  	dbg(GENERAL_CHANNEL,"Map for %d with size %d\n",TOS_NODE_ID,call myMap.size());
 
   	for (i = 0; i < call myMap.size(); i++)
   	{
@@ -439,7 +503,9 @@ implementation{
   	
   	map.ID = source;
   	map.currMaxNeighbors = -1;
+  	map.check = 1;
 
+  	//dbg(GENERAL_CHANNEL, "currmaxneighbors = %d\n",map.currMaxNeighbors);
   	//map[currentMaxNode].ID = source;
   	//map[currentMaxNode].currMaxNeighbors = -1;
 
@@ -478,7 +544,7 @@ implementation{
   		}
   	}
 
-  	call myMap.pushfront(map);
+  	call myMap.pushback(map);
   	//calcShortestRoute();
   }
 
@@ -494,7 +560,7 @@ implementation{
   	{
   		call tempMap.insert(map.ID,map);
 
-  		map = call myMap.popfront();
+  		map = call myMap.popback();
   	}
 
   	while(!call tempMap.isEmpty())
@@ -503,11 +569,127 @@ implementation{
 
    	 	map = call tempMap.get(*keys);
 
-   	 	call myMap.pushfront(map);
+   	 	call myMap.pushback(map);
 
    	 	call tempMap.remove(*keys);
    	 }
 
+  }
+  bool containsNeighbor(int node, int neighbor)
+  {
+  	int i = 0;
+
+  	map = call transferMap.get(node);
+
+  	for (i = 0; i <= map.currMaxNeighbors; i++)
+  	{
+  		if (map.neighbors[i] == neighbor)
+  			return TRUE;
+  	}
+
+  	return FALSE;
+  }
+  void addNeighbor(int node, int neighbor)
+  {
+  	if (call transferMap.contains(node))
+  		map = call transferMap.get(node);
+  	else
+  	{
+  		dbg(GENERAL_CHANNEL,"********For some reason didn't find in transfer*****\n");
+  		map = call myMap.get(loc(node));
+  	}
+ 
+
+  	map.currMaxNeighbors++;
+
+  	map.neighbors[map.currMaxNeighbors] = neighbor;
+
+  	if (TOS_NODE_ID == 1)
+  	{
+  		dbg(GENERAL_CHANNEL,"	CurrMaxNeighbor = %d\n",map.currMaxNeighbors);
+  		dbg(GENERAL_CHANNEL,"	MapID = %d\n",map.ID);
+  		dbg(GENERAL_CHANNEL,"	Neighbor being added = %d\n",neighbor);
+  		dbg(GENERAL_CHANNEL,"---------------------------------------------\n");
+  	}
+  	call transferMap.remove(map.ID);
+  	call transferMap.insert(map.ID,map);
+  }
+  void addNode(int node)
+  {
+  	map.ID = node;
+
+  	map.check = 2;
+
+  	map.currMaxNeighbors = -1;
+
+  	call transferMap.insert(map.ID,map);
+  }
+  void transferData()
+  {
+  	uint32_t *keys = call transferMap.getKeys();
+  	int i = 0;
+
+  	dbg(GENERAL_CHANNEL,"Values in transferMap to be printed\n");
+
+  	while(!call transferMap.isEmpty())
+  	{
+  		call myMap.pushback(call transferMap.get(*keys));
+
+  		map = call transferMap.get(*keys);
+
+  		if (TOS_NODE_ID == 1)
+  		{
+	  		dbg(GENERAL_CHANNEL,"Map ID = %d\n",map.ID);
+
+	  		for (i = 0; i <= map.currMaxNeighbors; i++)
+	  		{
+	  			dbg(GENERAL_CHANNEL,"	Neighbor: %d\n",map.neighbors[i]);
+	  		}
+  		}
+  		call transferMap.remove(*keys);
+  		
+  		keys = call transferMap.getKeys();
+  	}
+  }
+  void setupTopology()
+  {
+  	int i = 0;
+  	int j = 0;
+  	int size = call myMap.size();
+  	linkstate derp;
+
+  	if (TOS_NODE_ID == 1)
+  	printGraph();
+
+  	for (i = 0; i < size; i++)
+  	{
+  		derp = call myMap.get(i);
+
+		for (j = 0; j <= derp.currMaxNeighbors; j++)
+		{
+			if (!containInTopology(derp.neighbors[j]) && !call transferMap.contains(derp.neighbors[j]))
+			{
+				if (TOS_NODE_ID == 1)
+				{dbg(GENERAL_CHANNEL,"***Node %d is being added to transfer map\n",derp.neighbors[j]);
+				dbg(GENERAL_CHANNEL,"	***Being added by %d\n",derp.ID);
+				}
+				addNode(derp.neighbors[j]);
+				addNeighbor(derp.neighbors[j],derp.ID);
+			}
+			else if (!containInTopology(derp.neighbors[j]) && call transferMap.contains(derp.neighbors[j]))
+			{
+				if (TOS_NODE_ID == 1)
+				{dbg(GENERAL_CHANNEL,"---Node %d is added as neighbor in transfermap\n",derp.ID);
+				dbg(GENERAL_CHANNEL,"	---Being added to the neighborlist %d\n",derp.neighbors[j]);
+				}
+				addNeighbor(derp.neighbors[j],derp.ID);
+			}
+		}
+  	}
+
+  	transferData();
+  	if (TOS_NODE_ID == 1)
+  	printGraph();
   }
   bool statusJoin()
   {
@@ -524,7 +706,13 @@ implementation{
   		if (map.ID == source)
   			return TRUE;
   	}
-
+/*
+  	if (TOS_NODE_ID == 1)
+  	{
+  		dbg(GENERAL_CHANNEL,"Couldn't find node %d in following\n",source);
+  		printGraph();
+  	}
+ */
   	return FALSE;
   }
   
@@ -546,6 +734,7 @@ implementation{
   {
   	 //dbg(GENERAL_CHANNEL,"Calculating Shortest Route getting called\n");
   	 int count = 0;
+  	 //setupTopology();
   	 setupCostMap();
   	 setupRoutingMap();
   	 setupExpandedList();
@@ -556,18 +745,20 @@ implementation{
   	 call RoutingMap.remove(TOS_NODE_ID);
   	 call RoutingMap.insert(TOS_NODE_ID,TOS_NODE_ID);
 
-  	 expand(TOS_NODE_ID);
+  	 //expand(TOS_NODE_ID);
 
   	 //dbg(GENERAL_CHANNEL,"Current max size = %d\n",currentMaxNode + 1);
 
   	 if (fullyExpanded())
-  	 	dbg(GENERAL_CHANNEL,"fully expanded before even entering the for loop\n");
+  	 {dbg(GENERAL_CHANNEL,"fully expanded before even entering the for loop\n");
+  	 printCostMap();
+  	 }
 
   	 while(!fullyExpanded())
   	 {
   	 	uint16_t n = lowestCostNode();
 
-  	 	if (n == -1)
+  	 	if (n == COST_MAX)
   	 		break;
   	 	else
   	 		expand(n);
@@ -575,27 +766,7 @@ implementation{
   	 	
   	 }
 
-/*
-  	 if (TOS_NODE_ID == 1)
-  	 {
-  	 	int i = 0;
-  	 	
-  	 	dbg(GENERAL_CHANNEL,"Routing map for node 1\n");
 
-  	 	dbg(GENERAL_CHANNEL,"Current graph size = %d\n",call myMap.size());
-
-  	 	printGraph();
-  	 	printCostMap();
-  	 
-  	 	for(i = 0; i < call myMap.size(); i++)
-  	 	{
-  	 		map = call myMap.get(i);
-
-  	 		dbg(GENERAL_CHANNEL,"Port for %d is %d\n", map.ID,portCalc(map.ID));
-  	 	} 
-
-  	 }
-*/
  
   }
   
@@ -611,16 +782,15 @@ implementation{
       makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_NEIGHBORDISC, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
-    /* 
+     
       if (neighborChange())
       {
       	updateNeighbors();
-      	//sendNeighbors();
-      	//printNeighbors();
+      	sendNeighbors();
+      	//printGraph();
       }
-    */
-      sendNeighbors();
-
+    
+     
     }
   ////////////////////////////////////////////
 
@@ -677,7 +847,7 @@ implementation{
             else
             {
             	makePack(&sendPackage, TOS_NODE_ID, myMsg->src, myMsg->TTL, PROTOCOL_NEIGHBORDISC, 0, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-              	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+              	call Sender.send(sendPackage, myMsg->src);
             }
          }
 
@@ -686,7 +856,8 @@ implementation{
 
          call Hash.remove(myMsg->src);
          call Hash.insert(myMsg->src,myMsg->seq);
-         
+        
+
          if (myMsg->protocol == PROTOCOL_PING || myMsg->protocol == PROTOCOL_PINGREPLY)
          {
            // This is what causes the flooding 
@@ -714,6 +885,12 @@ implementation{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->src);
 	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
 	          	}
+	          	else
+	          	{
+	          		dbg(GENERAL_CHANNEL,"Packet is being dropped\n");
+	          		printCostMap();
+	          		printGraph();
+	          	}
               
               }
 
@@ -730,34 +907,46 @@ implementation{
 	          		//printCostMap();
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 	          	}
-	          	else if (call CostMap.contains(myMsg->dest) && !call CostMap.get(myMsg->dest) == COST_MAX))
+	          	else if (call CostMap.contains(myMsg->dest) && !call CostMap.get(myMsg->dest) == COST_MAX)
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->dest);
 	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
 	          	}
+	          	else
+	          		dbg(GENERAL_CHANNEL,"Packet is being dropped\n");
             }
          }
-         else if (myMsg->protocol == PROTOCOL_LINKSTATE)
+   
+         if (myMsg->protocol == PROTOCOL_LINKSTATE)
          {
+         	if (TOS_NODE_ID == 1)
+         		dbg(GENERAL_CHANNEL,"Message being received from %d to %d\n",myMsg->src,TOS_NODE_ID);
 
          	if(containInTopology(myMsg->src))
          	{
          		deleteFromTopology(myMsg->src);
          		addToTopology(myMsg->src,myMsg->payload);
+         		//setupTopology();
          		//dbg(GENERAL_CHANNEL,"It's already in topology\n");
          		//dbg(GENERAL_CHANNEL,"%d sent payload:\n%s\n",myMsg->src,myMsg->payload);
 
          	}
          	else
          	{
-         		//dbg(GENERAL_CHANNEL,"Message being received from %d to %d\n",myMsg->src,TOS_NODE_ID);
+         		if (TOS_NODE_ID == 1)
+         		dbg(GENERAL_CHANNEL,"	Message being received from %d to %d\n",myMsg->src,TOS_NODE_ID);
          		addToTopology(myMsg->src,myMsg->payload);
-
+         		//setupTopology();
+         		
          		calcShortestRoute();
 
-         		//printGraph();
-
-         		//printCostMap();
+         		if(TOS_NODE_ID == 1)
+         		{
+         			printCostMap();
+         			printGraph();
+         		}
+     			//printGraph();
+      
 
          		makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
               	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
@@ -765,16 +954,7 @@ implementation{
          
          }
 
-         /*
-         if (myMsg->dest != AM_BROADCAST_ADDR && call RoutingMap.contains(myMsg->dest))
-         {
-         	// This is where the main routing would go
 
-         	makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->TTL, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
-            call Sender.send(sendPackage, portCalc(myMsg->dest);
-
-         }
-         */
          
          
          
@@ -791,12 +971,16 @@ implementation{
       makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
       //call Sender.send(sendPackage, AM_BROADCAST_ADDR);
       
-      if (destination == AM_BROADCAST_ADDR || !call CostMap.contains(destination) || call CostMap.get(destination) == COST_MAX)
+      if (destination == AM_BROADCAST_ADDR)
 	  	call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-	  else
+	  else if (call RoutingMap.contains(destination) && call RoutingMap.get(destination) != COST_MAX)
 	  {
-	   	//dbg(GENERAL_CHANNEL,"Routing being used\n");
+	   	dbg(GENERAL_CHANNEL,"Routing being used to send ping\n");
 	   	call Sender.send(sendPackage, portCalc(destination));
+      }
+      else
+      {
+      	dbg(GENERAL_CHANNEL,"Message being dropped before it's even sent\n");
       }
       call Hash.insert(TOS_NODE_ID,sequence);
   

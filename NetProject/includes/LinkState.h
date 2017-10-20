@@ -16,9 +16,10 @@ enum{
 
 
 typedef nx_struct linkstate{
-	nx_uint16_t ID;
-	nx_uint16_t currMaxNeighbors;
-	nx_uint16_t neighbors[NEIGHBOR_MAX];
+	nx_uint32_t ID;
+	nx_uint32_t currMaxNeighbors;
+	nx_uint32_t check;
+	nx_uint32_t neighbors[NEIGHBOR_MAX];
 }linkstate;
 
 
