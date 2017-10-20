@@ -199,6 +199,14 @@ implementation{
    	 		call RoutingMap.remove(map.neighbors[i]);
    	 		call RoutingMap.insert(map.neighbors[i],node);
    	 	}
+   	 	else if (call CostMap.get(node) > (call CostMap.get(map.neighbors[i]) + 1))
+   	 	{
+   	 		call CostMap.remove(node);
+   	 		call CostMap.insert(node,call CostMap.get(map.neighbors[i]) + 1);
+
+   	 		call RoutingMap.remove(node);
+   	 		call RoutingMap.insert(node,map.neighbors[i]);
+   	 	}
    	 }
 
    	 call ExpandedList.pushfront(node);
@@ -256,6 +264,8 @@ implementation{
    	 int lowest = COST_MAX;
    	 int lowID = COST_MAX;
    	 int i = 0;
+   	 int j = 0;
+   	 uint32_t *keys;
 
    	 for (i = 0; i < call myMap.size(); i++)
    	 {
@@ -265,8 +275,21 @@ implementation{
    	 	{
    	 		lowest = call CostMap.get(map.ID);
    	 		lowID = map.ID;
+
+   	 		if (lowest == COST_MAX)
+   	 		{
+   	 			for (j = 0; j <= map.currMaxNeighbors; j++)
+   	 			{
+   	 				if (call CostMap.get(map.neighbors[j]) < lowest)
+   	 				{
+   	 					lowest = call CostMap.get(map.neighbors[j]);
+   	 					lowID = map.ID;
+   	 				}
+   	 			}
+   	 		}
    	 	}
    	 }
+
 
    	 //if (lowID == -1)
    	 	//dbg(GENERAL_CHANNEL, "Didn't find an ID with low value\n");
@@ -706,13 +729,7 @@ implementation{
   		if (map.ID == source)
   			return TRUE;
   	}
-/*
-  	if (TOS_NODE_ID == 1)
-  	{
-  		dbg(GENERAL_CHANNEL,"Couldn't find node %d in following\n",source);
-  		printGraph();
-  	}
- */
+
   	return FALSE;
   }
   
@@ -880,10 +897,10 @@ implementation{
 
               	if (myMsg->src == AM_BROADCAST_ADDR)
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-	          	else if (call CostMap.contains(myMsg->src) && !call CostMap.get(myMsg->src) == COST_MAX)
+	          	else if (call RoutingMap.contains(myMsg->src) && call RoutingMap.get(myMsg->src) != COST_MAX)
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->src);
-	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
+	          		call Sender.send(sendPackage, portCalc(myMsg->src));
 	          	}
 	          	else
 	          	{
@@ -907,7 +924,7 @@ implementation{
 	          		//printCostMap();
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 	          	}
-	          	else if (call CostMap.contains(myMsg->dest) && !call CostMap.get(myMsg->dest) == COST_MAX)
+	          	else if (call RoutingMap.contains(myMsg->dest) && call RoutingMap.get(myMsg->dest) != COST_MAX)
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d\n",TOS_NODE_ID,myMsg->dest);
 	          		call Sender.send(sendPackage, portCalc(myMsg->dest));
@@ -919,8 +936,6 @@ implementation{
    
          if (myMsg->protocol == PROTOCOL_LINKSTATE)
          {
-         	if (TOS_NODE_ID == 1)
-         		dbg(GENERAL_CHANNEL,"Message being received from %d to %d\n",myMsg->src,TOS_NODE_ID);
 
          	if(containInTopology(myMsg->src))
          	{
@@ -933,19 +948,10 @@ implementation{
          	}
          	else
          	{
-         		if (TOS_NODE_ID == 1)
-         		dbg(GENERAL_CHANNEL,"	Message being received from %d to %d\n",myMsg->src,TOS_NODE_ID);
          		addToTopology(myMsg->src,myMsg->payload);
          		//setupTopology();
          		
          		calcShortestRoute();
-
-         		if(TOS_NODE_ID == 1)
-         		{
-         			printCostMap();
-         			printGraph();
-         		}
-     			//printGraph();
       
 
          		makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
