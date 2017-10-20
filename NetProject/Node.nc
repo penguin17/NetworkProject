@@ -426,23 +426,28 @@ implementation{
 	
 	makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
+	call Hash.remove(TOS_NODE_ID);
 	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);  	
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR);  
 
     makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
+	call Hash.remove(TOS_NODE_ID);
 	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR); 
 
     makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
+	call Hash.remove(TOS_NODE_ID);
 	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR); 
 
     makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
+	call Hash.remove(TOS_NODE_ID);
 	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+    call Sender.send(sendPackage, AM_BROADCAST_ADDR); 
+    
 
     
 
@@ -644,8 +649,14 @@ implementation{
       
       makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_NEIGHBORDISC, 0, wow, PACKET_MAX_PAYLOAD_SIZE);
       call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-      
-     
+    /*  
+      if (TOS_NODE_ID == 1)
+      {
+      	makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_PING, sequence, wow, PACKET_MAX_PAYLOAD_SIZE);
+      	sequence++;
+        call Sender.send(sendPackage, AM_BROADCAST_ADDR);	
+      }
+     */
       if (neighborChange())
       {
       	updateNeighbors();
@@ -755,6 +766,7 @@ implementation{
               	dbg(FLOODING_CHANNEL, "Package Payload: %s\n", myMsg->payload);
               	dbg(FLOODING_CHANNEL, "Message being sent to %d for aknowledgement of message received by %d\n",myMsg->src,myMsg->dest);
               	makePack(&sendPackage, myMsg->dest, myMsg->src, myMsg->TTL, PROTOCOL_PINGREPLY, sequence, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
+              	call Hash.remove(TOS_NODE_ID);
               	call Hash.insert(TOS_NODE_ID,sequence);
               	sequence = sequence + 1;
 
@@ -783,7 +795,7 @@ implementation{
 	          	
 	          	if (myMsg->dest == AM_BROADCAST_ADDR)
 	          	{
-	          		//dbg(GENERAL_CHANNEL, "Package being sent to %d\n",myMsg->dest);
+	          		dbg(GENERAL_CHANNEL, "Package being passed along by %d\n",TOS_NODE_ID);
 	          		//printCostMap();
 	          		call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 	          	}
@@ -852,6 +864,7 @@ implementation{
       {
       	dbg(GENERAL_CHANNEL,"Message being dropped before it's even sent\n");
       }
+      call Hash.remove(TOS_NODE_ID);
       call Hash.insert(TOS_NODE_ID,sequence);
   	  //printCostMap();
   	  //printGraph();
