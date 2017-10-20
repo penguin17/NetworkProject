@@ -28,6 +28,7 @@ implementation {
     components new ListC(linkstate,GRAPH_NODE_MAX) as List4;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
+    components new TimerMilliC() as myTimerC2;
 
     Node -> MainC.Boot;
 
@@ -44,6 +45,7 @@ implementation {
     Node.myMap -> List4;
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
+    Node.sendingNeighborsTimer -> myTimerC2;
 
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;

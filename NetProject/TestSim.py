@@ -147,6 +147,12 @@ def main():
     s.runTime(40);
     s.ping(1,19, "Wowzers!");
     s.runTime(40);
+    s.ping(1,18, "Wowzers!");
+    s.runTime(40);
+    s.ping(1,17, "Wowzers!");
+    s.runTime(40);
+    s.ping(1,16, "Wowzers!");
+    s.runTime(40);
     
     
     i=0;

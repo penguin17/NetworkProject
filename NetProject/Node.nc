@@ -23,6 +23,7 @@ module Node{
    uses interface Boot;
 
    uses interface Timer<TMilli> as periodicTimer; //Interface that was wired above.
+   uses interface Timer<TMilli> as sendingNeighborsTimer;
 
    uses interface SplitControl as AMControl;
    uses interface Receive;
@@ -61,6 +62,7 @@ implementation{
    void printGraph();
    void printCostMap();
    bool containInTopology(int source);
+   void deleteFromTopology(int);
 
    void printNeighbors()
    {
@@ -152,31 +154,7 @@ implementation{
    	 if (map.ID != node && x != COST_MAX)
    	 	dbg(GENERAL_CHANNEL,"Location not working\n");
 
-   	 if (call CostMap.get(node) == COST_MAX)
-   	 {
-   	 	for (i = 0; i <= map.currMaxNeighbors; i++)
-   	 	{
-   	 		if (!call CostMap.contains(map.neighbors[i]))
-	   	 	{
-	   	 		call CostMap.insert(map.neighbors[i],COST_MAX);
-	   	 		call RoutingMap.insert(map.neighbors[i],COST_MAX);
-
-	   	 		//call CostMap.insert(map.neighbors[i],COST_MAX);
-
-	   	 	}
-	   	 	if (call CostMap.get(node) > (call CostMap.get(map.neighbors[i]) + 1))
-	   	 	{
-	   	 		//dbg(GENERAL_CHANNEL,"%d expanded by %d\n",map[x].neighbors[i],node);
-	   	 		call CostMap.remove(node);
-	   	 		call CostMap.insert(node,call CostMap.get(map.neighbors[i]) + 1);
-
-	   	 		call RoutingMap.remove(node);
-	   	 		call RoutingMap.insert(node,map.neighbors[i]);
-	   	 	}
-	   	}
-	   	call ExpandedList.pushfront(node);
-	   	return;
-   	 }
+   	 
 
    	 //dbg(GENERAL_CHANNEL,"Size of neighbors at node %d is %d\n",node,map[x].currMaxNeighbors);
    	 
@@ -408,9 +386,12 @@ implementation{
 
   	int i = 0, j = 0;
 
-  	printNeighbors();
+  	if (call NeighborList.size() == 0)
+  		return;
+
+  	//printNeighbors();
   	sprintf(temp,"%d*",call NeighborList.size());
-  	printNeighbors();
+  	//printNeighbors();
   	tempSize = strlen(temp);
 
   	for (i = 0; i < tempSize; i++)
@@ -435,10 +416,12 @@ implementation{
   		currSize = currSize + tempSize;
   	}
 
-  	
+  	if (containInTopology(TOS_NODE_ID))
+  		deleteFromTopology(TOS_NODE_ID);
+
   	addToTopology(TOS_NODE_ID,der);
 
-  	dbg(GENERAL_CHANNEL, "******%d is sending out message %s****\n",TOS_NODE_ID,der);
+  	//dbg(GENERAL_CHANNEL, "******%d is sending out message %s****\n",TOS_NODE_ID,der);
 	
 	makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
 	sequence = sequence + 1;
@@ -460,32 +443,9 @@ implementation{
 	call Hash.insert(TOS_NODE_ID,sequence);
     call Sender.send(sendPackage, AM_BROADCAST_ADDR);
 
-    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
-	sequence = sequence + 1;
-	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
+    
 
-    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
-	sequence = sequence + 1;
-	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-
-    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
-	sequence = sequence + 1;
-	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-
-    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
-	sequence = sequence + 1;
-	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-
-    makePack(&sendPackage, TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL , PROTOCOL_LINKSTATE, sequence, der, PACKET_MAX_PAYLOAD_SIZE);
-	sequence = sequence + 1;
-	call Hash.insert(TOS_NODE_ID,sequence);
-    call Sender.send(sendPackage, AM_BROADCAST_ADDR);
-
-    printCostMap();
+    //printCostMap();
   }
 
   void printGraph()
@@ -598,122 +558,8 @@ implementation{
    	 }
 
   }
-  bool containsNeighbor(int node, int neighbor)
-  {
-  	int i = 0;
-
-  	map = call transferMap.get(node);
-
-  	for (i = 0; i <= map.currMaxNeighbors; i++)
-  	{
-  		if (map.neighbors[i] == neighbor)
-  			return TRUE;
-  	}
-
-  	return FALSE;
-  }
-  void addNeighbor(int node, int neighbor)
-  {
-  	if (call transferMap.contains(node))
-  		map = call transferMap.get(node);
-  	else
-  	{
-  		dbg(GENERAL_CHANNEL,"********For some reason didn't find in transfer*****\n");
-  		map = call myMap.get(loc(node));
-  	}
- 
-
-  	map.currMaxNeighbors++;
-
-  	map.neighbors[map.currMaxNeighbors] = neighbor;
-
-  	if (TOS_NODE_ID == 1)
-  	{
-  		dbg(GENERAL_CHANNEL,"	CurrMaxNeighbor = %d\n",map.currMaxNeighbors);
-  		dbg(GENERAL_CHANNEL,"	MapID = %d\n",map.ID);
-  		dbg(GENERAL_CHANNEL,"	Neighbor being added = %d\n",neighbor);
-  		dbg(GENERAL_CHANNEL,"---------------------------------------------\n");
-  	}
-  	call transferMap.remove(map.ID);
-  	call transferMap.insert(map.ID,map);
-  }
-  void addNode(int node)
-  {
-  	map.ID = node;
-
-  	map.check = 2;
-
-  	map.currMaxNeighbors = -1;
-
-  	call transferMap.insert(map.ID,map);
-  }
-  void transferData()
-  {
-  	uint32_t *keys = call transferMap.getKeys();
-  	int i = 0;
-
-  	dbg(GENERAL_CHANNEL,"Values in transferMap to be printed\n");
-
-  	while(!call transferMap.isEmpty())
-  	{
-  		call myMap.pushback(call transferMap.get(*keys));
-
-  		map = call transferMap.get(*keys);
-
-  		if (TOS_NODE_ID == 1)
-  		{
-	  		dbg(GENERAL_CHANNEL,"Map ID = %d\n",map.ID);
-
-	  		for (i = 0; i <= map.currMaxNeighbors; i++)
-	  		{
-	  			dbg(GENERAL_CHANNEL,"	Neighbor: %d\n",map.neighbors[i]);
-	  		}
-  		}
-  		call transferMap.remove(*keys);
-  		
-  		keys = call transferMap.getKeys();
-  	}
-  }
-  void setupTopology()
-  {
-  	int i = 0;
-  	int j = 0;
-  	int size = call myMap.size();
-  	linkstate derp;
-
-  	if (TOS_NODE_ID == 1)
-  	printGraph();
-
-  	for (i = 0; i < size; i++)
-  	{
-  		derp = call myMap.get(i);
-
-		for (j = 0; j <= derp.currMaxNeighbors; j++)
-		{
-			if (!containInTopology(derp.neighbors[j]) && !call transferMap.contains(derp.neighbors[j]))
-			{
-				if (TOS_NODE_ID == 1)
-				{dbg(GENERAL_CHANNEL,"***Node %d is being added to transfer map\n",derp.neighbors[j]);
-				dbg(GENERAL_CHANNEL,"	***Being added by %d\n",derp.ID);
-				}
-				addNode(derp.neighbors[j]);
-				addNeighbor(derp.neighbors[j],derp.ID);
-			}
-			else if (!containInTopology(derp.neighbors[j]) && call transferMap.contains(derp.neighbors[j]))
-			{
-				if (TOS_NODE_ID == 1)
-				{dbg(GENERAL_CHANNEL,"---Node %d is added as neighbor in transfermap\n",derp.ID);
-				dbg(GENERAL_CHANNEL,"	---Being added to the neighborlist %d\n",derp.neighbors[j]);
-				}
-				addNeighbor(derp.neighbors[j],derp.ID);
-			}
-		}
-  	}
-
-  	transferData();
-  	if (TOS_NODE_ID == 1)
-  	printGraph();
-  }
+  
+  
   bool statusJoin()
   {
 
@@ -766,15 +612,14 @@ implementation{
 
   	 //dbg(GENERAL_CHANNEL,"Current max size = %d\n",currentMaxNode + 1);
 
-  	 if (fullyExpanded())
-  	 {dbg(GENERAL_CHANNEL,"fully expanded before even entering the for loop\n");
-  	 printCostMap();
-  	 }
+  	
 
   	 while(!fullyExpanded())
   	 {
   	 	uint16_t n = lowestCostNode();
 
+  	 	//if (TOS_NODE_ID == 1)
+  	 	//dbg(GENERAL_CHANNEL,"lowest cost node returned %d\n",n);
   	 	if (n == COST_MAX)
   	 		break;
   	 	else
@@ -807,9 +652,14 @@ implementation{
       	//printGraph();
       }
     
-     
+     //sendNeighbors();
     }
   ////////////////////////////////////////////
+
+  	event void sendingNeighborsTimer.fired()
+  	{
+  		sendNeighbors();
+  	}
 
 
    event void AMControl.startDone(error_t err){
@@ -817,7 +667,8 @@ implementation{
       if(err == SUCCESS){
          srand((unsigned) time(&t));
          dbg(GENERAL_CHANNEL, "Radio On\n");
-         call periodicTimer.startPeriodic(rand()%10000);
+         call periodicTimer.startPeriodic(rand()%(10000 + 1 - 9000) + 9000);
+         call sendingNeighborsTimer.startPeriodic(rand()%10000);
       }else{
          //Retry until successful
          call AMControl.start();
@@ -844,6 +695,8 @@ implementation{
          if (!call Hash.contains(myMsg->src))
               call Hash.insert(myMsg->src,-1);
 
+         if(myMsg->TTL <= 0)
+         	return msg;
          if (myMsg->protocol == PROTOCOL_NEIGHBORDISC)
          {
          	if (myMsg->dest == TOS_NODE_ID)
@@ -868,7 +721,7 @@ implementation{
             }
          }
 
-         if (call Hash.get(myMsg->src) >= myMsg->seq || myMsg->TTL <= 0)
+         if (call Hash.get(myMsg->src) >= myMsg->seq)
          	return msg;
 
          call Hash.remove(myMsg->src);
@@ -905,8 +758,8 @@ implementation{
 	          	else
 	          	{
 	          		dbg(GENERAL_CHANNEL,"Packet is being dropped\n");
-	          		printCostMap();
-	          		printGraph();
+	          		//printCostMap();
+	          		//printGraph();
 	          	}
               
               }
@@ -939,8 +792,9 @@ implementation{
 
          	if(containInTopology(myMsg->src))
          	{
-         		deleteFromTopology(myMsg->src);
-         		addToTopology(myMsg->src,myMsg->payload);
+         		//deleteFromTopology(myMsg->src);
+         		//addToTopology(myMsg->src,myMsg->payload);
+         		calcShortestRoute();
          		//setupTopology();
          		//dbg(GENERAL_CHANNEL,"It's already in topology\n");
          		//dbg(GENERAL_CHANNEL,"%d sent payload:\n%s\n",myMsg->src,myMsg->payload);
@@ -989,7 +843,8 @@ implementation{
       	dbg(GENERAL_CHANNEL,"Message being dropped before it's even sent\n");
       }
       call Hash.insert(TOS_NODE_ID,sequence);
-  
+  	  //printCostMap();
+  	  //printGraph();
       sequence = sequence + 1;
    }
 
