@@ -24,6 +24,7 @@ module Node{
 
    uses interface Timer<TMilli> as periodicTimer; //Interface that was wired above.
    uses interface Timer<TMilli> as sendingNeighborsTimer;
+   uses interface Timer<TMilli> as deleteMapTimer;
 
    uses interface SplitControl as AMControl;
    uses interface Receive;
@@ -661,14 +662,23 @@ implementation{
   		sendNeighbors();
   	}
 
-
+  	event void deleteMapTimer.fired()
+  	{
+  		while(!call myMap.isEmpty())
+  		{
+  			call myMap.popfront();
+  		}
+  	}
    event void AMControl.startDone(error_t err){
       time_t t;
+      int myTime;
       if(err == SUCCESS){
          srand((unsigned) time(&t));
          dbg(GENERAL_CHANNEL, "Radio On\n");
          call periodicTimer.startPeriodic(rand()%(10000 + 1 - 9000) + 9000);
-         call sendingNeighborsTimer.startPeriodic(rand()%10000);
+         myTime = rand()%(15000 + 1 - 10100) + 10100;
+         call sendingNeighborsTimer.startPeriodic(myTime);
+         call deleteMapTimer.startPeriodic((4*myTime)/2);
       }else{
          //Retry until successful
          call AMControl.start();

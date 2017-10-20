@@ -29,6 +29,7 @@ implementation {
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
     components new TimerMilliC() as myTimerC2;
+    components new TimerMilliC() as myTimerC3;
 
     Node -> MainC.Boot;
 
@@ -46,6 +47,7 @@ implementation {
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
     Node.sendingNeighborsTimer -> myTimerC2;
+    Node.deleteMapTimer -> myTimerC3;
 
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;
