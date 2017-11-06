@@ -131,7 +131,7 @@ class TestSim:
 
 def main():
     s = TestSim();
-    s.runTime(100);
+    s.runTime(200);
     s.loadTopo("long_line.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
@@ -140,19 +140,13 @@ def main():
     s.addChannel(s.NEIGHBOR_CHANNEL);
     s.addChannel(s.FLOODING_CHANNEL);
 
-    s.runTime(100);
+    s.runTime(200);
     s.ping(1, 2, "Hello, World");
     s.runTime(20);
-    s.ping(1, 3, "Hi!");
-    s.runTime(40);
-    s.ping(1,19, "Wowzers!");
-    s.runTime(40);
-    s.ping(1,18, "Wowzers!");
-    s.runTime(40);
-    s.ping(1,17, "Wowzers!");
-    s.runTime(40);
-    s.ping(1,16, "Wowzers!");
-    s.runTime(40);
+    s.ping(1,3,"wowzers!");
+    s.runTime(20);
+    s.ping(1,19,"Finally did it!!!");
+    s.runTime(30);
     
     
     i=0;

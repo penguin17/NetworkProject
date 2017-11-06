@@ -18,14 +18,16 @@ implementation {
     components MainC;
     components Node;
     components new HashmapC(int,100) as HashC;
-    components new HashmapC(int,100) as HashC2;
-    components new HashmapC(int,100) as HashC3;
-    components new HashmapC(linkstate,100) as HashC4;
-    components new HashmapC(linkstate,100) as HashC5;
+    //components new HashmapC(int,100) as HashC2;
+    //components new HashmapC(int,100) as HashC3;
+    //components new HashmapC(linkstate,100) as HashC4;
+    //components new HashmapC(linkstate,100) as HashC5;
     components new ListC(int,100) as List;
     components new ListC(int,100) as List2;
     components new ListC(int,100) as List3;
     components new ListC(linkstate,GRAPH_NODE_MAX) as List4;
+    components new ListC(pack,100) as List5;
+    components new ListC(int,100) as List6;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
     components new TimerMilliC() as myTimerC2;
@@ -35,15 +37,8 @@ implementation {
 
     Node.Receive -> GeneralReceive;
 
-    Node.Hash -> HashC;
-    Node.CostMap -> HashC2;
-    Node.RoutingMap -> HashC3;
-    Node.tempMap -> HashC4;
-    Node.transferMap -> HashC5;
-    Node.ExpandedList -> List3;
     Node.NeighborList -> List;
     Node.CheckList->List2;
-    Node.myMap -> List4;
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
     Node.sendingNeighborsTimer -> myTimerC2;
@@ -57,4 +52,25 @@ implementation {
 
     components CommandHandlerC;
     Node.CommandHandler -> CommandHandlerC;
+
+    //components NodeCommunicationC;
+    //Node.nodeComp -> NodeCommunicationC;
+
+    components new HashmapC(uint32_t,100) as HashC1;
+    components new HashmapC(uint32_t,100) as HashC2;
+    components new HashmapC(uint32_t,100) as HashC3;
+    components new HashmapC(linkstate,100) as HashC4;
+    components new HashmapC(linkstate,100) as HashC5;
+    components new HashmapC(linkstate,100) as HashC6;
+    components new HashmapC(uint32_t,100) as HashC7;
+    components new HashmapC(uint32_t,100) as HashC8;
+    components new HashmapC(uint32_t,100) as HashC9;
+
+    Node.PacketChecker -> HashC1;
+    Node.CostMap -> HashC2;
+    Node.RoutingMap -> HashC3;
+    Node.tempMap -> HashC4;
+    Node.linkStateMap -> HashC5;
+    Node.transferMap -> HashC6;
+    Node.ExpandedList -> HashC9;
 }
