@@ -19,6 +19,7 @@
 #include "includes/sendInfo.h"
 #include "includes/channels.h"
 #include "includes/LinkState.h"
+#include "includes/socket.h"
 
 module Node{
    uses interface Boot;
@@ -46,6 +47,12 @@ module Node{
    uses interface Hashmap<linkstate> as transferMap;
    uses interface Hashmap<linkstate> as tempMap;
    uses interface Hashmap<linkstate> as linkStateMap;
+   uses interface Hashmap<socket_store_t> as socketHash;
+   uses interface Transport;
+   uses interface Hashmap<socket_t> as socketIdentifier;
+   uses interface Hashmap<socket_addr_t> as socketConnections;
+   //uses interface Hashmap<uint32_t> as Derp;
+   //uses interface Test;
 }
 
 implementation{
@@ -66,6 +73,47 @@ implementation{
    void deleteFromTopology(int);
    void linkStateChange();
 
+   TCPpack translateMsg(uint8_t* payload)
+  {
+    uint8_t arr[20];
+    TCPpack derp;
+
+    memcpy(arr,payload,20);
+
+    derp.srcPort = arr[0]<<15;
+    derp.srcPort = derp.srcPort|arr[1];
+
+
+    derp.destPort = arr[2]<<15;
+    derp.destPort = derp.destPort|arr[3];
+
+    derp.flags[0] = arr[4];
+    derp.flags[1] = arr[5];
+
+    derp.seq = arr[6]<<23;
+    derp.seq = derp.seq|(arr[7]<<15);
+    derp.seq = derp.seq|arr[8];
+
+    derp.ack = arr[9]<<23;
+    derp.ack = derp.seq|(arr[10]<<15);
+    derp.ack = derp.seq|arr[11];
+
+    derp.advertisedWindow = arr[12]<<15;
+    derp.advertisedWindow = derp.advertisedWindow|arr[13];
+
+    memcpy(derp.data,arr+14,5);
+
+    dbg(GENERAL_CHANNEL,"Pack Received information (From NODE FILE):\n");
+    dbg(GENERAL_CHANNEL,"\tSource Port = %d\n",derp.srcPort);
+    dbg(GENERAL_CHANNEL,"\tDestination Port = %d\n",derp.destPort);
+    dbg(GENERAL_CHANNEL,"\tFlag 0 = %d and Flag 1 = %d\n",derp.flags[0],derp.flags[1]);
+    dbg(GENERAL_CHANNEL,"\tSeq = %d\n",derp.seq);
+    dbg(GENERAL_CHANNEL,"\tAdvertised Window = %d\n",derp.advertisedWindow);
+
+
+    return derp;
+
+  }
    void printGraph()
   {
     int i = 0;
@@ -436,8 +484,27 @@ implementation{
    }
 
    event void Boot.booted(){
+      TCPpack derp;
+      uint8_t payload[2];
+      uint16_t number = 0;
+      derp.srcPort = 50;
+      derp.destPort = 40;
+
+      memcpy(payload,&derp,2);
+
+      number = number|payload[0];
+      number = number << 16;
+      number = number|payload[1];
+
+      dbg(GENERAL_CHANNEL, "******************First entry of payload at booted is %d************\n",number);
       call AMControl.start();
       dbg(GENERAL_CHANNEL, "Booted\n");
+
+      //call Test.initialize(111);
+      //call Test.print();
+
+      //dbg(GENERAL_CHANNEL,"Value in your hash for ID 1 is %d\n",call Derp.get(1));
+
    }
   void printNeighbors()
   {
@@ -724,13 +791,14 @@ implementation{
             return msg;
 
 
-         if (myMsg->protocol == PROTOCOL_PING || myMsg->protocol == PROTOCOL_PINGREPLY)
+         if (myMsg->protocol == PROTOCOL_PING || myMsg->protocol == PROTOCOL_PINGREPLY || (myMsg->protocol == PROTOCOL_TCP && myMsg->dest != TOS_NODE_ID))
          {
             if (call CostMap.get(myMsg->src) <= 1)
               calcRoute();
 
             if (myMsg->dest == TOS_NODE_ID)
             {
+                dbg(GENERAL_CHANNEL,"Channel has been received at time %d\n", call periodicTimer.getNow());
                 pingDestHandle(myMsg);
             }
             else
@@ -738,6 +806,116 @@ implementation{
 	          	  pingRegHandle(myMsg);
             }
            
+         }
+         else if (myMsg->protocol == PROTOCOL_TCP && myMsg->dest == TOS_NODE_ID)
+         {
+            TCPpack derp = translateMsg(myMsg->payload);
+            uint16_t temp = 0;
+            socket_t fd = call socketIdentifier.get(derp.destPort);
+            socket_store_t addr = call socketHash.get(call socketIdentifier.get(derp.destPort));
+            uint32_t timeSent = 0;
+            socket_addr_t connect;
+
+            if (!call socketHash.contains(call socketIdentifier.get(derp.destPort)))
+            {
+              dbg(GENERAL_CHANNEL, "Socket is trying to connect to socket that doesn't even exist\n");
+            }
+
+            dbg(GENERAL_CHANNEL,"First Fd = %d\n",fd);
+
+            if (call Transport.receive(myMsg) == FAIL)
+            {
+              dbg(GENERAL_CHANNEL, "There was an error coming from receive function\n");
+            }
+
+            temp = derp.destPort;
+
+            derp.destPort = derp.srcPort;
+            derp.srcPort = temp;
+
+            if (derp.flags[0] == FLAG_SYN && derp.flags[1] == FLAG_NONE && addr.state == LISTEN)
+            {
+              derp.flags[0] = FLAG_SYN;
+              derp.flags[1] = FLAG_ACK;
+            }
+            else if (derp.flags[0] == FLAG_SYN && derp.flags[1] == FLAG_ACK && addr.state == SYN_SENT)
+            {
+              derp.flags[0] = FLAG_ACK;
+              derp.flags[1] = FLAG_NONE;
+              connect.port = derp.destPort;
+              connect.addr = myMsg->dest;
+
+              call Transport.connect(fd,&connect);
+            }
+            else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == SYN_RCVD)
+            {
+              connect.port = derp.destPort;
+              connect.addr = myMsg->dest;
+
+              call socketConnections.insert(1,connect);
+
+              call Transport.accept(fd);
+              return msg;
+            }
+            else if (derp.flags[0] == FLAG_FIN && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
+            {
+              clock_t curr = clock();
+              derp.flags[0] = FLAG_ACK;
+              derp.flags[1] = FLAG_NONE;
+              addr.RTT = 1;
+
+              makePack(&sendPackage, myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+              sequence++;
+              calcRoute();
+              call Sender.send(sendPackage,portCalc(myMsg->src));
+
+              timeSent = call periodicTimer.getNow();
+
+              while((2*addr.RTT) > clock()-curr)
+              {
+                dbg(GENERAL_CHANNEL,"I found the culprit time = %d\n",call periodicTimer.getNow());
+              }
+
+              derp.flags[0] = FLAG_FIN;
+              derp.flags[1] = FLAG_NONE;
+
+              makePack(&sendPackage, myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+              sequence++;
+              calcRoute();
+              call Sender.send(sendPackage,portCalc(myMsg->src));
+
+              return msg;
+            }
+            else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == FIN_WAIT1)
+            {
+              // Doesn't seem to be needed
+              return msg;
+            }
+            else if(derp.flags[0] == FLAG_FIN && derp.flags[1] == FLAG_NONE && addr.state == FIN_WAIT2)
+            {
+              derp.flags[0] = FLAG_ACK;
+              derp.flags[1] = FLAG_NONE;
+
+              makePack(&sendPackage, myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+              sequence++;
+              calcRoute();
+              call Sender.send(sendPackage,portCalc(myMsg->src));
+
+              call Transport.close(call socketIdentifier.get(derp.srcPort));
+            }
+            else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == LAST_ACK)
+            {
+              // Doesn't seem to be needed
+              return msg;
+            }
+
+            makePack(&sendPackage,myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+            sequence++;
+            calcRoute();
+            call Sender.send(sendPackage,portCalc(myMsg->src));
+
+            return msg;
+            
          }
   
          if (myMsg->protocol == PROTOCOL_LINKSTATE)
@@ -747,13 +925,6 @@ implementation{
             makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
             
             call Sender.send(sendPackage,AM_BROADCAST_ADDR);
-
-            if (TOS_NODE_ID == 2)
-            {
-              //dbg(GENERAL_CHANNEL,"LinkState from %d\n",myMsg->src);
-              //dbg(GENERAL_CHANNEL,"Sequence # = %d\n",myMsg->seq);
-              //printGraph();
-            }
          }
     
         
@@ -788,7 +959,7 @@ implementation{
 
    event void CommandHandler.printNeighbors()
    {
-      
+      dbg(GENERAL_CHANNEL, "Woah printneighbors actually works\n");
    }
 
    event void CommandHandler.printRouteTable()
@@ -803,13 +974,107 @@ implementation{
 
    event void CommandHandler.printDistanceVector(){}
 
-   event void CommandHandler.setTestServer(){}
+   event void CommandHandler.setTestServer(uint16_t port){
+    socket_t fd;
+    socket_addr_t addr;
 
-   event void CommandHandler.setTestClient(){}
+    dbg(GENERAL_CHANNEL,"Server on node %d being called with port value %d\n",TOS_NODE_ID,port);
+
+    fd = call Transport.socket();
+
+    addr.port = port;
+    addr.addr = TOS_NODE_ID;
+
+    call Transport.bind(fd,&addr);
+
+    call Transport.listen(fd);
+   }
+
+   event void CommandHandler.setTestClient(uint16_t dest, uint16_t srcPort, uint16_t destPort, uint16_t transfer){
+    socket_t fd;
+    socket_addr_t srcAddr;
+    socket_addr_t destAddr;
+    socket_store_t derp;
+    TCPpack tcp;
+
+    dbg(GENERAL_CHANNEL,"Client on node %d being called\n",TOS_NODE_ID);
+    dbg(GENERAL_CHANNEL,"\tDest = %d\n",dest);
+    dbg(GENERAL_CHANNEL,"\tsrcPort = %d\n",srcPort);
+    dbg(GENERAL_CHANNEL,"\tdestPort = %d\n",destPort);
+    dbg(GENERAL_CHANNEL,"\ttransfer = %d\n",transfer);
+
+    fd = call Transport.socket();
+
+    dbg(GENERAL_CHANNEL,"Initial value of fd = %d\n",fd);
+    srcAddr.port = srcPort;
+    srcAddr.addr = TOS_NODE_ID;
+
+    destAddr.port = destPort;
+    destAddr.addr = dest;
+
+    call Transport.bind(fd,&srcAddr);
+    
+    derp = call socketHash.get(fd);
+    derp.state = SYN_SENT;
+    call socketHash.remove(fd);
+    call socketHash.insert(fd,derp);
+
+    tcp.srcPort = srcPort;
+    tcp.destPort = destPort;
+    tcp.flags[0] = FLAG_SYN;
+    tcp.flags[1] = FLAG_NONE;
+    tcp.seq = 0;
+    tcp.ack = 0;
+    tcp.advertisedWindow = 0;
+
+    calcRoute();
+
+    makePack(&sendPackage, TOS_NODE_ID, dest, MAX_TTL, PROTOCOL_TCP,sequence,&tcp,PACKET_MAX_PAYLOAD_SIZE);
+    sequence++;
+    call Sender.send(sendPackage,portCalc(dest));
+   }
 
    event void CommandHandler.setAppServer(){}
 
    event void CommandHandler.setAppClient(){}
+
+   event void CommandHandler.clientClose(uint16_t dest, uint16_t srcPort, uint16_t destPort)
+   {
+      socket_store_t derp = call socketHash.get(call socketIdentifier.get(srcPort));
+      socket_t fd = call socketIdentifier.get(srcPort);
+      uint32_t* keys = call socketHash.getKeys();
+      TCPpack tcp;
+
+      //dbg(GENERAL_CHANNEL,"Dest = %d and destPort = %d\n",dest,destPort);
+      //dbg(GENERAL_CHANNEL,"derp.dest.addr = %d, and derp.dest.port = %d\n",derp.dest.addr,derp.dest.port);
+      //dbg(GENERAL_CHANNEL,"derp.srcport = %d\n",derp.src);
+      dbg(GENERAL_CHANNEL,"Size of socketHash = %d\n",call socketHash.size());
+      dbg(GENERAL_CHANNEL,"Key of sockeHash = %d\n",*keys);
+
+      if (derp.dest.addr == dest && derp.dest.port == destPort)
+      {
+          dbg(GENERAL_CHANNEL,"Connection has been found\n");
+          
+          tcp.srcPort = srcPort;
+          tcp.destPort = destPort;
+          tcp.flags[0] = FLAG_FIN;
+          tcp.flags[1] = FLAG_NONE;
+          tcp.seq = 0;
+          tcp.ack = 0;
+          tcp.advertisedWindow = 0;
+          
+          derp.state = FIN_WAIT1;
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,derp);
+
+          calcRoute();
+
+          makePack(&sendPackage, TOS_NODE_ID, dest, MAX_TTL, PROTOCOL_TCP,sequence,&tcp,PACKET_MAX_PAYLOAD_SIZE);
+          sequence++;
+          call Sender.send(sendPackage,portCalc(dest));
+      }
+
+   }
 
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t protocol, uint16_t seq, uint8_t* payload, uint8_t length){
       Package->src = src;

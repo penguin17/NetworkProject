@@ -14,6 +14,9 @@ class TestSim:
     CMD_NEIGHBOR_DUMP = 1
     CMD_LINK_DUMP=2
     CMD_ROUTE_DUMP=3
+    TEST_CLIENT = 4
+    TEST_SERVER = 5
+    CMD_KILL = 6;
 
     # CHANNELS - see includes/channels.h
     COMMAND_CHANNEL="command";
@@ -116,8 +119,8 @@ class TestSim:
     def ping(self, source, dest, msg):
         self.sendCMD(self.CMD_PING, source, "{0}{1}".format(chr(dest),msg));
 
-    def neighborDMP(self, destination):
-        self.sendCMD(self.CMD_NEIGHBOR_DUMP, destination, "neighbor command");
+    def neighborDMP(self, source,destination,msg):
+        self.sendCMD(self.CMD_NEIGHBOR_DUMP, source, "{0}{1}".format(chr(destination),msg));
 
     def routeDMP(self, destination):
         self.sendCMD(2, destination, "routing command");
@@ -128,6 +131,14 @@ class TestSim:
     def addChannel(self, channelName, out=sys.stdout):
         print 'Adding Channel', channelName;
         self.t.addChannel(channelName, out);
+
+    def cmdTestServer(self,source,port):
+        self.sendCMD(self.TEST_SERVER,source,"{0}".format(chr(port)));
+
+    def cmdTestClient(self,source,dest,srcPort,destPort,transfer):
+        self.sendCMD(self.TEST_CLIENT,source,"{0}{1}{2}{3}".format(chr(dest),chr(srcPort),chr(destPort),chr(transfer)));
+    def cmdCloseClient(self,source,dest,srcPort,destPort):
+        self.sendCMD(self.CMD_KILL,source,"{0}{1}{2}".format(chr(dest),chr(srcPort),chr(destPort)));
 
 def main():
     s = TestSim();
@@ -141,17 +152,30 @@ def main():
     s.addChannel(s.FLOODING_CHANNEL);
 
     s.runTime(200);
-    s.ping(1, 2, "Hello, World");
-    s.runTime(20);
-    s.ping(1,3,"wowzers!");
-    s.runTime(20);
-    s.ping(1,19,"Finally did it!!!");
-    s.runTime(30);
+
     
+    # s.runTime(200);
+    # s.ping(1, 2, "Hello, World");
+    # s.runTime(20);
+    # s.ping(1,3,"wowzers!");
+    # s.runTime(20);
+    # s.ping(1,19,"Finally did it!!!");
+    # s.runTime(30);
     
-    i=0;
-    for i in range(1, s.numMote+1):
-            s.neighborDMP(i);
+    print("Testing Testserver");
+    s.cmdTestServer(5,20);
+    s.runTime(20);
+
+    print("Testing TestClient");
+    s.cmdTestClient(1,5,20,20,20);
+    s.runTime(20);
+
+    print("Testing ClosingClient");
+    s.cmdCloseClient(1,5,20,20);
+    s.runTime(20);
+
+
+	
 
 if __name__ == '__main__':
     main()

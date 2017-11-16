@@ -11,6 +11,7 @@
 #include "includes/CommandMsg.h"
 #include "includes/packet.h"
 #include "includes/LinkState.h"
+#include "includes/socket.h"
 
 configuration NodeC{
 }
@@ -65,6 +66,9 @@ implementation {
     components new HashmapC(uint32_t,100) as HashC7;
     components new HashmapC(uint32_t,100) as HashC8;
     components new HashmapC(uint32_t,100) as HashC9;
+    components new HashmapC(socket_store_t,100) as HashC10;
+    components new HashmapC(socket_t,100) as HashC11;
+    components new HashmapC(socket_addr_t,100) as HashC12;
 
     Node.PacketChecker -> HashC1;
     Node.CostMap -> HashC2;
@@ -73,4 +77,19 @@ implementation {
     Node.linkStateMap -> HashC5;
     Node.transferMap -> HashC6;
     Node.ExpandedList -> HashC9;
+    Node.socketHash -> HashC10;
+    Node.socketIdentifier -> HashC11;
+    Node.socketConnections -> HashC12;
+    //Node.Derp -> HashC9;
+
+    components new TransportC() as Trans;
+    components new TestC() as Tester;
+
+    Node.Transport -> Trans;
+    Trans.socketHash -> HashC10;
+    Trans.periodicTimer -> myTimerC;
+    Trans.socketIdentifier -> HashC11;
+    Trans.socketConnections -> HashC12;
+    //Node.Test -> Tester;
+    //Tester.Hash5 -> HashC9;
 }
