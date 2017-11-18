@@ -33,6 +33,8 @@ implementation {
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
     components new TimerMilliC() as myTimerC2;
     components new TimerMilliC() as myTimerC3;
+    components new TimerMilliC() as myTimerC4;
+    components new TimerMilliC() as myTimerC5;
 
     Node -> MainC.Boot;
 
@@ -44,6 +46,8 @@ implementation {
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
     Node.sendingNeighborsTimer -> myTimerC2;
     Node.deleteMapTimer -> myTimerC3;
+    Node.writeTimer -> myTimerC4;
+    Node.readTimer -> myTimerC5;
 
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;
@@ -69,6 +73,7 @@ implementation {
     components new HashmapC(socket_store_t,100) as HashC10;
     components new HashmapC(socket_t,100) as HashC11;
     components new HashmapC(socket_addr_t,100) as HashC12;
+    components new HashmapC(seqInformation,1000) as HashC13;
 
     Node.PacketChecker -> HashC1;
     Node.CostMap -> HashC2;
@@ -81,6 +86,7 @@ implementation {
     Node.socketIdentifier -> HashC11;
     Node.socketConnections -> HashC12;
     //Node.Derp -> HashC9;
+    Node.seqInfo -> HashC13;
 
     components new TransportC() as Trans;
     components new TestC() as Tester;

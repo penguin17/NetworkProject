@@ -151,7 +151,7 @@ def main():
     s.addChannel(s.NEIGHBOR_CHANNEL);
     s.addChannel(s.FLOODING_CHANNEL);
 
-    s.runTime(200);
+    s.runTime(20);
 
     
     # s.runTime(200);
@@ -164,15 +164,15 @@ def main():
     
     print("Testing Testserver");
     s.cmdTestServer(5,20);
-    s.runTime(20);
+    s.runTime(100);
 
     print("Testing TestClient");
     s.cmdTestClient(1,5,20,20,20);
-    s.runTime(20);
+    s.runTime(100);
 
-    print("Testing ClosingClient");
-    s.cmdCloseClient(1,5,20,20);
-    s.runTime(20);
+    # print("Testing ClosingClient");
+    # s.cmdCloseClient(1,5,20,20);
+    # s.runTime(40);
 
 
 	

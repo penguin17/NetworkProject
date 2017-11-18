@@ -34,6 +34,13 @@ enum flag_state{
 typedef nx_uint8_t nx_socket_port_t;
 typedef uint8_t socket_port_t;
 
+typedef nx_struct seqInformation{
+    nx_uint32_t lastAck;
+    nx_uint32_t lastSent;
+
+    nx_uint32_t nextExpected;
+    nx_uint32_t lastRcvd;
+}seqInformation;
 // socket_addr_t is a simplified version of an IP connection.
 typedef nx_struct socket_addr_t{
     nx_socket_port_t port;
@@ -47,7 +54,7 @@ typedef nx_struct TCPpack{
     nx_uint32_t seq;
     nx_uint32_t ack;
     nx_uint16_t advertisedWindow;
-    nx_uint8_t data[5];
+    nx_uint8_t data[4];
 }TCPpack;
 
 // File descripter id. Each id is associated with a socket_store_t

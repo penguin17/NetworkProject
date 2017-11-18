@@ -41,12 +41,7 @@ implementation{
 
     memcpy(derp.data,arr+14,5);
 
-    dbg(GENERAL_CHANNEL,"Pack Received information (From NODE FILE):\n");
-    dbg(GENERAL_CHANNEL,"\tSource Port = %d\n",derp.srcPort);
-    dbg(GENERAL_CHANNEL,"\tDestination Port = %d\n",derp.destPort);
-    dbg(GENERAL_CHANNEL,"\tFlag 0 = %d and Flag 1 = %d\n",derp.flags[0],derp.flags[1]);
-    dbg(GENERAL_CHANNEL,"\tSeq = %d\n",derp.seq);
-    dbg(GENERAL_CHANNEL,"\tAdvertised Window = %d\n",derp.advertisedWindow);
+    
 
 
     return derp;
@@ -92,6 +87,12 @@ implementation{
 		derp.state = CLOSED;
 		derp.effectiveWindow = 0;
 		derp.RTT = 0;
+		derp.lastWritten = 0;
+		derp.lastAck = 0;
+		derp.lastSent = 0;
+		derp.lastRead = 0;
+		derp.lastRcvd = 0;
+		derp.nextExpected = 1;
 
 		call socketHash.insert(fd,derp);
 
@@ -230,14 +231,21 @@ implementation{
 		{
 			addr.state = CLOSED;
 
-			call socketHash.remove(fd);
+			//call socketHash.remove(fd);
 
-			dbg(GENERAL_CHANNEL,"Server has closed down\n");
-
+			return SUCCESS;
+		}
+		else if (derp.flags[0] == FLAG_NONE && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
+		{
+			return SUCCESS;
+		}
+		else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
+		{
 			return SUCCESS;
 		}
 		
 		dbg(GENERAL_CHANNEL,"Transport receive function should've not gotten here\n");
+		dbg(GENERAL_CHANNEL,"Current state = %u\n",addr.state);
 		return FAIL;
 	}
 
@@ -270,7 +278,7 @@ implementation{
 
 			while((2*derp.RTT) > clock()-timeNow)
 			{
-				dbg(GENERAL_CHANNEL,"wOWZERSKDFJA;LKDF;ALKD\n");
+				//dbg(GENERAL_CHANNEL,"wOWZERSKDFJA;LKDF;ALKD\n");
 			}
 
 			dbg(GENERAL_CHANNEL,"Client has closed correctly\n");
@@ -318,35 +326,43 @@ implementation{
 	}
 	command uint16_t Transport.read(socket_t fd, uint8_t *buff, uint16_t bufflen)
 	{
-		uint16_t check = 0;
+		uint32_t check = 0;
 		int i = 0;
 		socket_store_t derp = call socketHash.get(fd);
 
-		if (derp.lastRead == derp.lastReceived)
+		//dbg(GENERAL_CHANNEL,"REAL buffer = %s\n",derp.rcvdBuff + 1);
+
+		if (derp.lastRead == derp.lastRcvd)
 			return 0;
 
-		if (derp.lastRead < derp.lastReceived)
-			check = SOCKET_BUFFER_SIZE - (derp.lastReceived - derp.lastRead);
-		else
-			check = SOCKET_BUFFER_SIZE - (derp.lastRead - derp.lastReceived);
-
-		if ((check + buffLen) > SOCKET_BUFFER_SIZE)
-			return 0;
+		
 
 		derp.lastRead++;
 
-		for (i = 0; i < buffLen; i++)
+		for (i = 0; i < bufflen; i++)
 		{
 			if (derp.lastRead >= SOCKET_BUFFER_SIZE)
+			{
 				derp.lastRead = 0;
 
+			}
+			else if (derp.lastRead == (derp.nextExpected - 1))
+			{
+				//dbg(GENERAL_CHANNEL,"This is the reason why it's not shwoing anything?\n");
+				call socketHash.remove(fd);
+				call socketHash.insert(fd,derp);
+				return check;
+			}
+
 			buff[i] = derp.rcvdBuff[derp.lastRead];
+			//dbg(GENERAL_CHANNEL,"+++++++++++Buffer value(read thingy) = %u\n",buff[i]);
 			derp.lastRead++;
+			check++;
 		}
 
 		call socketHash.remove(fd);
 		call socketHash.insert(fd,derp);
-
+		return check;
 	}
 	command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen)
 	{
@@ -354,17 +370,13 @@ implementation{
 	    uint16_t check = 0;
 	    int i = 0;
 
-	    if (derp.lastWritten < derp.lastAck)
-	    	check = SOCKET_BUFFER_SIZE - (derp.lastAck - derp.lastWritten);
-	    else
-	    	check = SOCKET_BUFFER_SIZE - (derp.lastWritten - derp.lastAck);
-
-	    if ((check + buffLen) > SOCKET_BUFFER_SIZE)
+	    if (derp.lastWritten == (derp.lastAck - 1))
 	    	return 0;
 
+	    if (derp.lastWritten == derp.lastAck)
 	    derp.lastWritten++;
 
-	    for (i = 0; i < buffLen; i++)
+	    for (i = 0; i < bufflen; i++)
 	    {
 	    	if (derp.lastWritten >= SOCKET_BUFFER_SIZE)
 	    		derp.lastWritten = 0;
@@ -376,5 +388,6 @@ implementation{
 	    call socketHash.remove(fd);
 	    call socketHash.insert(fd,derp);
 
+	    dbg(GENERAL_CHANNEL,"The current written portion = %s\n",derp.sendBuff + 1);
 	}	
 }
