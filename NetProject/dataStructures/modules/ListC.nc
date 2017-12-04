@@ -44,10 +44,10 @@ implementation{
 	command t List.popback(){
 		t returnVal;
 
+		if(size > 0)size--;
 		returnVal = container[size];
 		// We don't need to actually remove the value, we just need to decrement
 		// the size.
-		if(size > 0)size--;
 		return returnVal;
 	}
 

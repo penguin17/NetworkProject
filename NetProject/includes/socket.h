@@ -34,12 +34,15 @@ enum flag_state{
 typedef nx_uint8_t nx_socket_port_t;
 typedef uint8_t socket_port_t;
 
-typedef nx_struct seqInformation{
-    nx_uint32_t lastAck;
-    nx_uint32_t lastSent;
+typedef struct seqInformation{
+    uint32_t lastAck;
+    uint32_t lastSent;
 
-    nx_uint32_t nextExpected;
-    nx_uint32_t lastRcvd;
+    uint32_t nextExpected;
+    uint32_t lastRcvd;
+
+    uint32_t currSeq;
+    uint32_t currAck;
 }seqInformation;
 // socket_addr_t is a simplified version of an IP connection.
 typedef nx_struct socket_addr_t{

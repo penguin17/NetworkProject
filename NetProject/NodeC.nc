@@ -29,12 +29,14 @@ implementation {
     components new ListC(linkstate,GRAPH_NODE_MAX) as List4;
     components new ListC(pack,100) as List5;
     components new ListC(int,100) as List6;
+    components new ListC(outstandTCP,100) as List7;
     components new AMReceiverC(AM_PACK) as GeneralReceive;
     components new TimerMilliC() as myTimerC; //create a new timer with alias “myTimerC”
     components new TimerMilliC() as myTimerC2;
     components new TimerMilliC() as myTimerC3;
     components new TimerMilliC() as myTimerC4;
     components new TimerMilliC() as myTimerC5;
+    components new TimerMilliC() as myTimerC6;
 
     Node -> MainC.Boot;
 
@@ -42,12 +44,14 @@ implementation {
 
     Node.NeighborList -> List;
     Node.CheckList->List2;
+    Node.outstandingMessages->List7;
 
     Node.periodicTimer -> myTimerC; //Wire the interface to the component
     Node.sendingNeighborsTimer -> myTimerC2;
     Node.deleteMapTimer -> myTimerC3;
     Node.writeTimer -> myTimerC4;
     Node.readTimer -> myTimerC5;
+    Node.reliabilityTimer->myTimerC6;
 
     components ActiveMessageC;
     Node.AMControl -> ActiveMessageC;

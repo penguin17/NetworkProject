@@ -1,0 +1,192 @@
+Creating Topo!
+Number of Motes 19
+  1   2   -54.0
+  2   3   -54.0
+  3   4   -54.0
+  4   5   -54.0
+  5   6   -54.0
+  6   7   -54.0
+  7   8   -54.0
+  8   9   -54.0
+  9   10   -54.0
+  10   11   -54.0
+  11   12   -54.0
+  12   13   -54.0
+  13   14   -54.0
+  14   15   -54.0
+  15   16   -54.0
+  16   17   -54.0
+  17   18   -54.0
+  18   19   -54.0
+  2   1   -54.0
+  3   2   -54.0
+  4   3   -54.0
+  5   4   -54.0
+  6   5   -54.0
+  7   6   -54.0
+  8   7   -54.0
+  9   8   -54.0
+  10   9   -54.0
+  11   10   -54.0
+  12   11   -54.0
+  13   12   -54.0
+  14   13   -54.0
+  15   14   -54.0
+  16   15   -54.0
+  17   16   -54.0
+  18   17   -54.0
+  19   18   -54.0
+Creating noise model for  1
+Creating noise model for  2
+Creating noise model for  3
+Creating noise model for  4
+Creating noise model for  5
+Creating noise model for  6
+Creating noise model for  7
+Creating noise model for  8
+Creating noise model for  9
+Creating noise model for  10
+Creating noise model for  11
+Creating noise model for  12
+Creating noise model for  13
+Creating noise model for  14
+Creating noise model for  15
+Creating noise model for  16
+Creating noise model for  17
+Creating noise model for  18
+Creating noise model for  19
+Adding Channel command
+Adding Channel general
+Adding Channel neighbor
+Adding Channel flooding
+0:0:0.000000133 DEBUG (1): Booted
+0:0:0.000000133 DEBUG (1): Server on node 1 being called with port value 41
+0:0:0.000000143 DEBUG (1): Radio On
+0:0:0.000000143 DEBUG (1): Node 1
+0:0:0.000000143 DEBUG (1):   myTime = 23753
+0:0:0.000000266 DEBUG (2): Booted
+0:0:0.000000276 DEBUG (2): Radio On
+0:0:0.000000276 DEBUG (2): Node 2
+0:0:0.000000276 DEBUG (2):   myTime = 14334
+0:0:0.000000399 DEBUG (3): Booted
+0:0:0.000000409 DEBUG (3): Radio On
+0:0:0.000000409 DEBUG (3): Node 3
+0:0:0.000000409 DEBUG (3):   myTime = 20557
+0:0:0.000000533 DEBUG (4): Booted
+0:0:0.000000543 DEBUG (4): Radio On
+0:0:0.000000543 DEBUG (4): Node 4
+0:0:0.000000543 DEBUG (4):   myTime = 13401
+0:0:0.000000666 DEBUG (5): Booted
+0:0:0.000000676 DEBUG (5): Radio On
+0:0:0.000000676 DEBUG (5): Node 5
+0:0:0.000000676 DEBUG (5):   myTime = 22898
+0:0:0.000000799 DEBUG (6): Booted
+0:0:0.000000809 DEBUG (6): Radio On
+0:0:0.000000809 DEBUG (6): Node 6
+0:0:0.000000809 DEBUG (6):   myTime = 12220
+0:0:0.000000933 DEBUG (7): Booted
+0:0:0.000000943 DEBUG (7): Radio On
+0:0:0.000000943 DEBUG (7): Node 7
+0:0:0.000000943 DEBUG (7):   myTime = 13726
+0:0:0.000001066 DEBUG (8): Booted
+0:0:0.000001076 DEBUG (8): Radio On
+0:0:0.000001076 DEBUG (8): Node 8
+0:0:0.000001076 DEBUG (8):   myTime = 11923
+0:0:0.000001199 DEBUG (9): Booted
+0:0:0.000001209 DEBUG (9): Radio On
+0:0:0.000001209 DEBUG (9): Node 9
+0:0:0.000001209 DEBUG (9):   myTime = 24388
+0:0:0.000001333 DEBUG (10): Booted
+0:0:0.000001343 DEBUG (10): Radio On
+0:0:0.000001343 DEBUG (10): Node 10
+0:0:0.000001343 DEBUG (10):   myTime = 16696
+0:0:0.000001466 DEBUG (11): Booted
+0:0:0.000001476 DEBUG (11): Radio On
+0:0:0.000001476 DEBUG (11): Node 11
+0:0:0.000001476 DEBUG (11):   myTime = 17584
+0:0:0.000001599 DEBUG (12): Booted
+0:0:0.000001609 DEBUG (12): Radio On
+0:0:0.000001609 DEBUG (12): Node 12
+0:0:0.000001609 DEBUG (12):   myTime = 24493
+0:0:0.000001732 DEBUG (13): Booted
+0:0:0.000001742 DEBUG (13): Radio On
+0:0:0.000001742 DEBUG (13): Node 13
+0:0:0.000001742 DEBUG (13):   myTime = 26672
+0:0:0.000001866 DEBUG (14): Booted
+0:0:0.000001876 DEBUG (14): Radio On
+0:0:0.000001876 DEBUG (14): Node 14
+0:0:0.000001876 DEBUG (14):   myTime = 24311
+0:0:0.000001999 DEBUG (15): Booted
+0:0:0.000002009 DEBUG (15): Radio On
+0:0:0.000002009 DEBUG (15): Node 15
+0:0:0.000002009 DEBUG (15):   myTime = 20064
+0:0:0.000002132 DEBUG (16): Booted
+0:0:0.000002142 DEBUG (16): Radio On
+0:0:0.000002142 DEBUG (16): Node 16
+0:0:0.000002142 DEBUG (16):   myTime = 22119
+0:0:0.000002266 DEBUG (17): Booted
+0:0:0.000002276 DEBUG (17): Radio On
+0:0:0.000002276 DEBUG (17): Node 17
+0:0:0.000002276 DEBUG (17):   myTime = 17456
+0:0:0.000002399 DEBUG (18): Booted
+0:0:0.000002409 DEBUG (18): Radio On
+0:0:0.000002409 DEBUG (18): Node 18
+0:0:0.000002409 DEBUG (18):   myTime = 28683
+0:0:0.000002532 DEBUG (19): Booted
+0:0:0.000002542 DEBUG (19): Radio On
+0:0:0.000002542 DEBUG (19): Node 19
+0:0:0.000002542 DEBUG (19):   myTime = 10014
+0:0:19.558596292 DEBUG (19): For node 19: Time = 20028
+0:0:19.558596292 DEBUG (19): 	Node: 18
+0:0:23.287110451 DEBUG (8): For node 8: Time = 23846
+0:0:23.287110451 DEBUG (8): 	Node: 7
+0:0:23.287110451 DEBUG (8): 	Node: 9
+0:0:23.867188309 DEBUG (6): For node 6: Time = 24440
+0:0:23.867188309 DEBUG (6): 	Node: 5
+0:0:23.867188309 DEBUG (6): 	Node: 7
+0:0:26.173828668 DEBUG (4): For node 4: Time = 26802
+0:0:26.173828668 DEBUG (4): 	Node: 5
+0:0:26.173828668 DEBUG (4): 	Node: 3
+0:0:26.808594693 DEBUG (7): For node 7: Time = 27452
+0:0:26.808594693 DEBUG (7): 	Node: 6
+0:0:26.808594693 DEBUG (7): 	Node: 8
+0:0:27.996094026 DEBUG (2): For node 2: Time = 28668
+0:0:27.996094026 DEBUG (2): 	Node: 1
+0:0:27.996094026 DEBUG (2): 	Node: 3
+0:0:32.609376343 DEBUG (10): For node 10: Time = 33392
+0:0:32.609376343 DEBUG (10): 	Node: 9
+0:0:32.609376343 DEBUG (10): 	Node: 11
+0:0:34.093752276 DEBUG (17): For node 17: Time = 34912
+0:0:34.093752276 DEBUG (17): 	Node: 18
+0:0:34.093752276 DEBUG (17): 	Node: 16
+0:0:34.343751476 DEBUG (11): For node 11: Time = 35168
+0:0:34.343751476 DEBUG (11): 	Node: 10
+0:0:34.343751476 DEBUG (11): 	Node: 12
+0:0:39.187502009 DEBUG (15): For node 15: Time = 40128
+0:0:39.187502009 DEBUG (15): 	Node: 16
+0:0:39.187502009 DEBUG (15): 	Node: 14
+0:0:40.150391034 DEBUG (3): For node 3: Time = 41114
+0:0:40.150391034 DEBUG (3): 	Node: 4
+0:0:40.150391034 DEBUG (3): 	Node: 2
+*****************
+0:0:41.651184589 DEBUG (1): A Command has been Issued.
+0:0:41.651184589 DEBUG (1): Command Type: Ping
+0:0:41.651184589 DEBUG (1): PING EVENT for destination = 1
+0:0:41.651184589 DEBUG (1): **************Ending time = 42650******************
+0:0:43.201174017 DEBUG (16): For node 16: Time = 44238
+0:0:43.201174017 DEBUG (16): 	Node: 15
+0:0:43.201174017 DEBUG (16): 	Node: 17
+0:0:44.722656926 DEBUG (5): For node 5: Time = 45796
+0:0:44.722656926 DEBUG (5): 	Node: 4
+0:0:44.722656926 DEBUG (5): 	Node: 6
+0:0:46.392578268 DEBUG (1): For node 1: Time = 47506
+0:0:46.392578268 DEBUG (1): 	Node: 2
+0:0:47.482423751 DEBUG (14): For node 14: Time = 48622
+0:0:47.482423751 DEBUG (14): 	Node: 15
+0:0:47.482423751 DEBUG (14): 	Node: 13
+0:0:47.632813709 DEBUG (9): For node 9: Time = 48776
+0:0:47.632813709 DEBUG (9): 	Node: 8
+0:0:47.632813709 DEBUG (9): 	Node: 10
+0:0:47.837892234 DEBUG (12): For node 12: Time = 48986
+0:0:47.837892234 DEBUG (12): 	Node: 11
+0:0:47.837892234 DEBUG (12): 	Node: 13

@@ -25,6 +25,13 @@ typedef nx_struct pack{
 	nx_uint8_t payload[PACKET_MAX_PAYLOAD_SIZE];
 }pack;
 
+typedef nx_struct outstandTCP{
+	pack currPack;
+	nx_uint32_t expectedTime;
+	nx_uint32_t seqNum;
+	nx_uint32_t fd;
+}outstandTCP;
+
 /*
  * logPack
  * 	Sends packet information to the general channel.

@@ -29,12 +29,14 @@ module Node{
    uses interface Timer<TMilli> as deleteMapTimer;
    uses interface Timer<TMilli> as writeTimer;
    uses interface Timer<TMilli> as readTimer;
+   uses interface Timer<TMilli> as reliabilityTimer;
 
    uses interface SplitControl as AMControl;
    uses interface Receive;
    uses interface List<int> as NeighborList;
    uses interface List<int> as CheckList;
    //uses interface List<pack> as savedMessages;
+   uses interface List<outstandTCP> as outstandingMessages;
 
    uses interface SimpleSend as Sender;
 
@@ -68,6 +70,7 @@ implementation{
    uint16_t currentCount;
    uint16_t maxDataTransfer;
 
+
    // Prototypes
    void makePack(pack *Package, uint16_t src, uint16_t dest, uint16_t TTL, uint16_t Protocol, uint16_t seq, uint8_t *payload, uint8_t length);
    //void calcShortestRoute();
@@ -77,39 +80,110 @@ implementation{
    bool containInTopology(int source);
    void deleteFromTopology(int);
    void linkStateChange();
+   void calcRoute();
+   uint32_t portCalc(uint32_t node);
+
+   event void reliabilityTimer.fired()
+   {
+   		outstandTCP temp;
+   		uint32_t i = 0;
+   		uint32_t size = call outstandingMessages.size();
+   		seqInformation seqIn;
+   		socket_store_t socket;
+/*
+   		dbg(GENERAL_CHANNEL,"==============================\n");
+   		dbg(GENERAL_CHANNEL,"Should be getting called a lot at time = %u\n",call reliabilityTimer.getNow());
+   		dbg(GENERAL_CHANNEL,"==============================\n");
+*/
+   		for (i = 0; i < size; i++)
+   		{
+   			temp = call outstandingMessages.popback();
+   			seqIn = call seqInfo.get(temp.fd);
+   			socket = call socketHash.get(temp.fd);
+
+   			if (temp.seqNum >= seqIn.currAck && temp.expectedTime > call reliabilityTimer.getNow())
+   			{
+   				//dbg(GENERAL_CHANNEL,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+   				//dbg(GENERAL_CHANNEL,"Message is being put back into list\n");
+   				call outstandingMessages.pushfront(temp);
+   				continue;
+   			}
+   			else if (temp.seqNum >= seqIn.currAck && temp.expectedTime <= call reliabilityTimer.getNow())
+   			{
+
+   			dbg(GENERAL_CHANNEL,"==============================\n");
+   			dbg(GENERAL_CHANNEL,"Message being resent at time = %u\n",call reliabilityTimer.getNow());
+   			dbg(GENERAL_CHANNEL,"==============================\n");
+   			/*
+   				dbg(GENERAL_CHANNEL, "===============================Reliability timer found a message that hasn't been received yet**********\n");
+   				dbg(GENERAL_CHANNEL,"temp.seqNum = %u\n",temp.seqNum);
+   				dbg(GENERAL_CHANNEL,"seqIn.currAck = %u\n",seqIn.currAck);
+   				dbg(GENERAL_CHANNEL,"expectedTime = %u\n",temp.expectedTime);
+   				dbg(GENERAL_CHANNEL,"Current time = %u\n",call reliabilityTimer.getNow());
+   			 */
+   				calcRoute();
+   				temp.currPack.seq = sequence;
+   				sequence++;
+   				call Sender.send(temp.currPack,portCalc(temp.currPack.dest));
+   				temp.expectedTime = 2*socket.RTT + call reliabilityTimer.getNow();
+   				call outstandingMessages.pushfront(temp);
+   			}
+   			else
+   			{/*
+   				dbg(GENERAL_CHANNEL,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+   				dbg(GENERAL_CHANNEL,"Message getting dropped contains:\n");
+   				dbg(GENERAL_CHANNEL,"temp.seqNum = %u\n",temp.seqNum);
+   				dbg(GENERAL_CHANNEL,"seqIn.currAck = %u\n",seqIn.currAck);
+   				dbg(GENERAL_CHANNEL,"expectedTime = %u\n",temp.expectedTime);
+   				dbg(GENERAL_CHANNEL,"Current time = %u\n",call reliabilityTimer.getNow());
+   				dbg(GENERAL_CHANNEL,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+   			*/
+   			}
+
+
+   		}
+   }
 
    TCPpack translateMsg(uint8_t* payload)
   {
     uint8_t arr[20];
     TCPpack derp;
+    uint8_t temp8;
+    uint16_t temp16;
+    uint32_t temp32;
 
     memcpy(arr,payload,20);
 
-    derp.srcPort = arr[0]<<15;
+    derp.srcPort = 0;
+    derp.srcPort = arr[0]<<8;
     derp.srcPort = derp.srcPort|arr[1];
 
 
-    derp.destPort = arr[2]<<15;
+    derp.destPort = 0;
+    derp.destPort = arr[2]<<8;
     derp.destPort = derp.destPort|arr[3];
 
     derp.flags[0] = arr[4];
     derp.flags[1] = arr[5];
 
+    derp.seq = 0;
     derp.seq = arr[6]<<24;
     derp.seq = derp.seq|(arr[7]<<16);
     derp.seq = derp.seq|(arr[8]<<8);
     derp.seq = derp.seq|arr[9];
 
+    derp.ack = 0;
     derp.ack = arr[10]<<24;
-    derp.ack = derp.seq|(arr[11]<<16);
-    derp.ack = derp.seq|(arr[12]<<8);
-    derp.ack = derp.seq|arr[13];
+    derp.ack = derp.ack|(arr[11]<<16);
+    derp.ack = derp.ack|(arr[12]<<8);
+    derp.ack = derp.ack|arr[13];
 
     derp.advertisedWindow = arr[14]<<16;
     derp.advertisedWindow = derp.advertisedWindow|arr[15];
 
     memcpy(derp.data,arr+16,4);
 
+    dbg(GENERAL_CHANNEL,"Time = %u\n",call periodicTimer.getNow());
     dbg(GENERAL_CHANNEL,"Pack Received information (From NODE FILE):\n");
     dbg(GENERAL_CHANNEL,"\tSource Port = %d\n",derp.srcPort);
     dbg(GENERAL_CHANNEL,"\tDestination Port = %d\n",derp.destPort);
@@ -117,12 +191,12 @@ implementation{
     dbg(GENERAL_CHANNEL,"\tSeq = %u\n",derp.seq);
     dbg(GENERAL_CHANNEL,"\tAck = %u\n",derp.ack);
     dbg(GENERAL_CHANNEL,"\tAdvertised Window = %d\n",derp.advertisedWindow);
-
+    dbg(GENERAL_CHANNEL,"\tData = %s\n",derp.data);
 
     return derp;
 
   }
-  void setupSeqInformation(socket_t fd, uint32_t seq)
+  void setupSeqInformation(socket_t fd, uint32_t seq, uint32_t ack)
   {
     seqInformation derp;
 
@@ -131,6 +205,9 @@ implementation{
 
     derp.lastRcvd = seq;
     derp.nextExpected = seq+1;
+
+    derp.currSeq = seq;
+    derp.currAck = ack;
 
     call seqInfo.insert(fd,derp);
   }
@@ -504,33 +581,38 @@ implementation{
    }
 
    event void Boot.booted(){
-      TCPpack derp;
-      uint8_t payload[2];
-      uint16_t number = 0;
-      derp.srcPort = 50;
-      derp.destPort = 40;
+      socket_t fd;
+      socket_addr_t addr;
+      socket_store_t socket;
 
-      memcpy(payload,&derp,2);
-
-      number = number|payload[0];
-      number = number << 16;
-      number = number|payload[1];
-
-      dbg(GENERAL_CHANNEL, "******************First entry of payload at booted is %d************\n",number);
       call AMControl.start();
       dbg(GENERAL_CHANNEL, "Booted\n");
 
-      //call Test.initialize(111);
-      //call Test.print();
+      if(TOS_NODE_ID == 1)
+      {
+	      dbg(GENERAL_CHANNEL,"Server on node %d being called with port value %d\n",TOS_NODE_ID,41);
 
-      //dbg(GENERAL_CHANNEL,"Value in your hash for ID 1 is %d\n",call Derp.get(1));
+	      fd = call Transport.socket();
 
+	      socket = call socketHash.get(fd);
+	      socket.RTT = 20000;
+
+	      call socketHash.remove(fd);
+	      call socketHash.insert(fd,socket);
+
+	      addr.port = 41;
+	      addr.addr = TOS_NODE_ID;
+
+	      call Transport.bind(fd,&addr);
+
+	      call Transport.listen(fd);
+	  }
    }
   void printNeighbors()
   {
     int i = 0;
 
-    dbg(GENERAL_CHANNEL, "For node %d:\n",TOS_NODE_ID);
+    dbg(GENERAL_CHANNEL, "For node %d: Time = %u\n",TOS_NODE_ID,call periodicTimer.getNow());
 
     for (i = 0; i < call NeighborList.size(); i++)
     {
@@ -664,13 +746,20 @@ implementation{
       socket_store_t socket = call socketHash.get(fd);
       seqInformation seqIn = call seqInfo.get(fd);
 
+      //dbg(GENERAL_CHANNEL,"BEFORE\n");
+      //dbg(GENERAL_CHANNEL,"\tlastSent = %u\n",socket.lastSent);
+
       for (i = 0; i < 4; i++)
       {
         if (socket.lastSent == socket.lastWritten)
         {
+          // Be aware that changed data[i] = 0 to = socket.sendBuff[socket.lastSent];
             
           dbg(GENERAL_CHANNEL,"For some reason it's inside the lastsent == lastWritten\n");
+          dbg(GENERAL_CHANNEL,"AFTER\n");
+      	  dbg(GENERAL_CHANNEL,"\tlastSent = %u\n",socket.lastSent);
 
+          
           data[i] = 0;
           call seqInfo.remove(fd);
           call seqInfo.insert(fd,seqIn);
@@ -680,12 +769,17 @@ implementation{
 
           return;
         }
-        else if ((socket.lastSent + 1) == 128)
+        else if ((socket.lastSent+1) == 128)
         {
           data[i] = socket.sendBuff[0];
           socket.lastSent = 0;
-          //seqIn.lastSent++;
-          dbg(GENERAL_CHANNEL,"Checking to see if this is even being called\n");
+          seqIn.lastSent++;
+
+          //dbg(GENERAL_CHANNEL,"Send buff contents\n");
+          
+          //dbg(GENERAL_CHANNEL,"%s\n",socket.sendBuff);
+          
+          //dbg(GENERAL_CHANNEL,"Checking to see if this is even being called\n");
         }
         else
         {
@@ -694,11 +788,20 @@ implementation{
 
           seqIn.lastSent++;
         }
+
+        if (socket.lastSent >= 128)
+          socket.lastSent = 0;
       }
 
+      // Why is this even here??
       if (data[4] == 0)
         data[4] = 0;
+
+        //dbg(GENERAL_CHANNEL,"Send buff contents\n");
+        //dbg(GENERAL_CHANNEL,"%s\n",socket.sendBuff);
       dbg(GENERAL_CHANNEL,"The ending string == %s\n",data);
+      //dbg(GENERAL_CHANNEL,"AFTER\n");
+      //dbg(GENERAL_CHANNEL,"\tlastSent = %u\n",socket.lastSent);
       call seqInfo.remove(fd);
       call seqInfo.insert(fd,seqIn);
 
@@ -709,21 +812,24 @@ implementation{
     {
       socket_store_t socket = call socketHash.get(fd);
 
-      if (socket.lastWritten == (socket.lastAck - 1))
+      if (socket.lastWritten == (socket.lastAck - 1) || (socket.lastWritten == 127 && socket.lastAck == 0))
         return 0;
 
+      //dbg(GENERAL_CHANNEL,"SocketlastAck = %u\n",socket.lastAck);
+      //dbg(GENERAL_CHANNEL,"SocketlastWritten = %u\n",socket.lastWritten);
+
       if (socket.lastWritten > socket.lastAck)
-        return SOCKET_BUFFER_SIZE - (socket.lastWritten - socket.lastAck + 1);
+        return SOCKET_BUFFER_SIZE - socket.lastWritten + socket.lastAck;
       else if (socket.lastWritten < socket.lastAck)
-        return SOCKET_BUFFER_SIZE - (socket.lastAck - socket.lastWritten - 1);
+        return (socket.lastAck - socket.lastWritten - 1);
       else
-        return SOCKET_BUFFER_SIZE - 1;
+        return SOCKET_BUFFER_SIZE;
     }
     bool ackSocket(socket_t fd, uint32_t ack)
     {
       socket_store_t socket = call socketHash.get(fd);
       seqInformation seqIn = call seqInfo.get(fd);
-
+ 
       
 
       if (ack >= 128)
@@ -732,92 +838,123 @@ implementation{
         return FALSE;
       }
 
-      if (ack > socket.lastSent && socket.lastSent > socket.lastAck)
+      
+
+      if (socket.lastSent > socket.lastAck)
       {
-        seqIn.lastAck += ack - socket.lastAck;
-        socket.lastAck = ack-1;
-        socket.lastSent = ack-1;
-
-        call seqInfo.remove(fd);
-        call seqInfo.insert(fd,seqIn);
-
-        call socketHash.remove(fd);
-        call socketHash.insert(fd,socket);
-
-        dbg(GENERAL_CHANNEL,"Socket info:\n");
-        dbg(GENERAL_CHANNEL,"\tlast sent = %u\n",socket.lastSent);
-        dbg(GENERAL_CHANNEL,"\tlast ack = %u\n",socket.lastAck);
-        return TRUE;
-      }
-
-      if (ack > socket.lastAck && ack <= socket.lastSent)
-      {
-        seqIn.lastAck += ack - socket.lastAck;
-        socket.lastAck = ack -1;
-
-        call seqInfo.remove(fd);
-        call seqInfo.insert(fd,seqIn);
-
-        call socketHash.remove(fd);
-        call socketHash.insert(fd,socket);
-
-        dbg(GENERAL_CHANNEL,"Socket info:\n");
-      dbg(GENERAL_CHANNEL,"\tlast sent = %u\n",socket.lastSent);
-      dbg(GENERAL_CHANNEL,"\tlast ack = %u\n",socket.lastAck);
-
-        return TRUE;
-      }
-      else if (ack > socket.lastAck && ack > socket.lastSent && socket.lastAck > socket.lastSent)
-      {
-        seqIn.lastAck += ack - socket.lastAck;
-        socket.lastAck = ack;
-
-        call seqInfo.remove(fd);
-        call seqInfo.insert(fd,seqIn);
-        call socketHash.remove(fd);
-        call socketHash.insert(fd,socket);
-
-        dbg(GENERAL_CHANNEL,"Socket info:\n");
-      dbg(GENERAL_CHANNEL,"\tlast sent = %u\n",socket.lastSent);
-      dbg(GENERAL_CHANNEL,"\tlast ack = %u\n",socket.lastAck);
-
-        return TRUE;
-      }
-      else if (ack < socket.lastSent && socket.lastSent < socket.lastAck)
-      {
-        uint32_t count = 0;
-
-        while(socket.lastAck != ack)
+        if (ack > socket.lastAck && ack  < socket.lastSent)
         {
-          socket.lastAck++;
-          count++;
+          seqIn.lastAck += ack - socket.lastAck - 1;
+          socket.lastAck = ack -1;
 
-          if(socket.lastAck == 128)
-          {
-            socket.lastAck = 0;
-            break;
-          }
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
+
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
+
+          
+
+          return TRUE;
         }
+        else if (ack == (socket.lastSent + 1) || (ack == 0 && socket.lastSent == 127))
+        {
+          seqIn.lastAck += ack - socket.lastAck - 1;
+          socket.lastAck = ack-1;
+          //socket.lastSent = ack-1;
 
-        seqIn.lastAck += ack + count;
-        socket.lastAck = ack - 1;
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
 
-        call seqInfo.remove(fd);
-        call seqInfo.insert(fd,seqIn);
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
 
-        call socketHash.remove(fd);
-        call socketHash.insert(fd,socket);
+          
 
-        dbg(GENERAL_CHANNEL,"Socket info:\n");
-      dbg(GENERAL_CHANNEL,"\tlast sent = %u\n",socket.lastSent);
-      dbg(GENERAL_CHANNEL,"\tlast ack = %u\n",socket.lastAck);
-        return TRUE;
+          return TRUE;
+        }
+        else
+        {
+          dbg(GENERAL_CHANNEL,"Encountered scenario in lastSent > lastAck that didn't account for\n");
+          dbg(GENERAL_CHANNEL,"ack = %u\n",ack);
+          dbg(GENERAL_CHANNEL,"socket.lastSent = %u\n",socket.lastSent);
+          dbg(GENERAL_CHANNEL,"socket.lastAck = %u\n",socket.lastAck);
+        }
       }
-      else
+      else if (socket.lastAck > socket.lastSent)
       {
-        dbg(GENERAL_CHANNEL,"-----------Ack had no place within ack field\n");
-        return FALSE;
+        if ((ack == (socket.lastSent + 1) || (ack == 0 && socket.lastSent == 127)) && ack < socket.lastAck)
+        {
+
+          while (socket.lastAck != socket.lastSent)
+          {
+            socket.lastAck++;
+            seqIn.lastAck++;
+
+            if (socket.lastAck >= 128)
+              socket.lastAck = 0;
+          }
+
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
+
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
+
+          
+          return TRUE;
+        }
+        else if (ack > socket.lastAck && ack > socket.lastSent)
+        {
+          seqIn.lastAck += ack - socket.lastAck - 1;
+          socket.lastAck = ack;
+
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
+
+          
+
+          return TRUE;
+        }
+        else if (ack < socket.lastSent && ack < socket.lastAck)
+        {
+          uint32_t oneBefore = 0;
+
+          if (ack == 0)
+            oneBefore = 127;
+          else
+            oneBefore = ack - 1;
+
+          while(socket.lastAck != oneBefore)
+          {
+            socket.lastAck++;
+            seqIn.lastAck++;
+
+            if(socket.lastAck >= 128)
+            {
+              socket.lastAck = 0;
+            }
+          }
+
+
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
+
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
+
+          
+          return TRUE;
+        }
+        
+
+        
       }
+    
+    	dbg(GENERAL_CHANNEL,"ACKSOCKET DIDN'T GO IN ANY OF OPTIONS\n");
+        return FALSE;
 
     }
     uint32_t processData(socket_t fd, uint8_t* data, uint32_t seq)
@@ -828,40 +965,58 @@ implementation{
       seqInformation seqIn = call seqInfo.get(fd);
 
 
-      //if (seqIn.nextExpected == seq)
-        //dbg(GENERAL_CHANNEL, "++++++++ Fuck Yeah\n");
-      ///else
-        //dbg(GENERAL_CHANNEL,"-------- Oh no\n");
 
-      if (seq != socket.nextExpected)
+    
+  	  if (seq != socket.nextExpected)
       {
         dbg(GENERAL_CHANNEL,"Not the right expected seq value\n");
+        dbg(GENERAL_CHANNEL,"Seq = %u\n",seq);
+        dbg(GENERAL_CHANNEL,"nextExpected = %u\n",socket.nextExpected);
         return 0;
       }
+      else if (seq == socket.nextExpected)
+      {
+      	//dbg(GENERAL_CHANNEL,"seq = socket.nextExpected\n");
+      }
+
+      //dbg(GENERAL_CHANNEL,"BEGINNING:\n");
+      //dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",socket.nextExpected);
+      //dbg(GENERAL_CHANNEL,"\tlastRcvd = %u\n",socket.lastRcvd);
 
       for (i = 0; i < 4; i++)
       {
-        if (socket.nextExpected == (socket.lastRead - 1) || (socket.nextExpected == 127 && socket.lastRead == 0))
+        if (socket.nextExpected == socket.lastRead)
         {
-          dbg(GENERAL_CHANNEL,"processData going somewhere it shouldn't be going\n");
-          return 0;
+          //dbg(GENERAL_CHANNEL,"processData going somewhere it shouldn't be going\n");
+          //dbg(GENERAL_CHANNEL,"ENDINGING:\n");
+      	  //dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",socket.nextExpected);
+      	  //dbg(GENERAL_CHANNEL,"\tlastRcvd = %u\n",socket.lastRcvd);
+
+          call seqInfo.remove(fd);
+          call seqInfo.insert(fd,seqIn);
+
+          call socketHash.remove(fd);
+          call socketHash.insert(fd,socket);
+          return count;
         }
         else
         {
           if (data[i] == 0)
           {
-            dbg(GENERAL_CHANNEL,"======= Returning count at i = %d because data[i] = 0",i);
+            //dbg(GENERAL_CHANNEL,"======= Returning count at i = %d because data[i] = 0",i);
             //socket.nextExpected++;
+            //dbg(GENERAL_CHANNEL,"ENDINGING:\n");
+      	  //dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",socket.nextExpected);
+      	  //dbg(GENERAL_CHANNEL,"\tlastRcvd = %u\n",socket.lastRcvd);
             call seqInfo.remove(fd);
-      call seqInfo.insert(fd,seqIn);
+            call seqInfo.insert(fd,seqIn);
 
-      call socketHash.remove(fd);
-      call socketHash.insert(fd,socket);
+            call socketHash.remove(fd);
+            call socketHash.insert(fd,socket);
             return count;
           } 
           socket.rcvdBuff[socket.nextExpected] = data[i];
           
-          //dbg(GENERAL_CHANNEL,"*********Buffer value = %u and data value = %u @ node = %u\n",socket.rcvdBuff[socket.nextExpected],data[i],socket.nextExpected);
           socket.nextExpected++;
           seqIn.nextExpected++;
           socket.lastRcvd++;
@@ -875,6 +1030,9 @@ implementation{
         }
       }
 
+      //dbg(GENERAL_CHANNEL,"ENDINGING:\n");
+      	  //dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",socket.nextExpected);
+      	  //dbg(GENERAL_CHANNEL,"\tlastRcvd = %u\n",socket.lastRcvd);
       call seqInfo.remove(fd);
       call seqInfo.insert(fd,seqIn);
 
@@ -892,19 +1050,18 @@ implementation{
       {
         socket_store_t socket = call socketHash.get(*keys);
         uint32_t size = call Transport.read(*keys,buff,128);
+        
         if(size != 0)
         {
-          dbg(GENERAL_CHANNEL,"PRINTKEDNKADF;AKDJF;KLAJD;LFAIDVKLCNV;LADF\n");
-          dbg(GENERAL_CHANNEL,"Socket %u has %s\n",*keys,buff);
+          dbg(GENERAL_CHANNEL,"Socket %u from node %u has just read %s\n",*keys,TOS_NODE_ID,buff);
         }
         keys++;
-        dbg(GENERAL_CHANNEL,"INifnitie loop here?\n");
       }
 
     }
     event void writeTimer.fired()
     {
-      uint8_t buff[100];
+      uint8_t buff[128];
       uint32_t* keys = call socketHash.getKeys();
 
       while(*keys)
@@ -921,7 +1078,7 @@ implementation{
           {
             size = sprintf(buff + currSize, "%u,",currentCount);
 
-            if ((currSize + size) < allowableSize)
+            if ((currSize + size) <= allowableSize)
             {  
               currentCount++;
               currSize += size;
@@ -932,9 +1089,22 @@ implementation{
           }
 
           if (currSize != 0)
-          {
+          {uint16_t writeSize = 0;
             dbg(GENERAL_CHANNEL,"String being sent to written ======  %s\n",buff);
-            call Transport.write(*keys,buff,currSize);
+            dbg(GENERAL_CHANNEL,"currSize = %u\n",currSize);
+            dbg(GENERAL_CHANNEL,"currentCount = %u\n",currentCount);
+            dbg(GENERAL_CHANNEL,"LASTACK = %u\n",socket.lastAck);
+            dbg(GENERAL_CHANNEL,"LASTSENT = %u\n",socket.lastSent);
+            dbg(GENERAL_CHANNEL,"LASTWRITTEN = %u\n",socket.lastWritten);
+            writeSize = call Transport.write(*keys,buff,currSize);
+
+            socket = call socketHash.get(*keys);
+            
+            dbg(GENERAL_CHANNEL,"LASTACK = %u\n",socket.lastAck);
+            dbg(GENERAL_CHANNEL,"LASTSENT = %u\n",socket.lastSent);
+            dbg(GENERAL_CHANNEL,"LASTWRITTEN = %u\n",socket.lastWritten);
+            dbg(GENERAL_CHANNEL,"AMOUNT THAT WAS SUCCESSFULLY WRITTEN = %u\n",writeSize);
+            dbg(GENERAL_CHANNEL,"STRING OF WRITE BUFFER = %s\n",socket.sendBuff);
           }
         }
 
@@ -964,11 +1134,14 @@ implementation{
 
       if(err == SUCCESS){
          dbg(GENERAL_CHANNEL,"Radio On\n");
-         myTime = rand()%(1000 + 1 - 100) + 100;
+         myTime = rand()%(30000 + 1 - 10000) + 10000;
+
+         dbg(GENERAL_CHANNEL,"Node %d\n",TOS_NODE_ID);
+         dbg(GENERAL_CHANNEL,"  myTime = %d\n",myTime);
          
-         call periodicTimer.startPeriodic(rand()%(10000 + 1 - 9000) + 9000);
-         call sendingNeighborsTimer.startPeriodic(15*myTime);
-         call deleteMapTimer.startPeriodic(10000000);
+         call periodicTimer.startPeriodic(myTime);
+         call sendingNeighborsTimer.startPeriodic(0.5*myTime);
+         //call deleteMapTimer.startPeriodic(10000000);
          //call deleteMapTimer.startOneShot(3*myTime);
       }else{
          //Retry until successful
@@ -976,9 +1149,7 @@ implementation{
       }
    }
 
-   event void AMControl.stopDone(error_t err){
-    
-   }
+   event void AMControl.stopDone(error_t err){}
 
    void neighborHandle(pack* myMsg)
    {
@@ -1016,7 +1187,7 @@ implementation{
       }
       else if (containsRouting(myMsg->dest))
       {
-        dbg(GENERAL_CHANNEL,"Routing being used: %d is passing to %d using %d\n",TOS_NODE_ID,myMsg->dest,portCalc(myMsg->dest));
+        //dbg(GENERAL_CHANNEL,"Routing being used: at %u\n",call periodicTimer.getNow());
         call Sender.send(sendPackage,portCalc(myMsg->dest));
       }
       else
@@ -1047,8 +1218,8 @@ implementation{
         }
         else if (containsRouting(myMsg->src))
         {
-        call PacketChecker.remove(TOS_NODE_ID);
-    call PacketChecker.insert(TOS_NODE_ID,sequence);
+          call PacketChecker.remove(TOS_NODE_ID);
+          call PacketChecker.insert(TOS_NODE_ID,sequence);
           call Sender.send(sendPackage,portCalc(myMsg->src));
         }
         else
@@ -1060,15 +1231,9 @@ implementation{
    }
 
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
-
+   error_t x;
       if(len==sizeof(pack)){
          pack* myMsg=(pack*) payload;
-
-         /////////////////////////////////////////////////////////////////////////////////
-         // - Something to take note is when to check if you've seen the message already
-         // - Also how to check when destination has next hop choice
-         // - Also make it so that you implement port calc to make utilization of the routing table
-         /////////////////////////////////////////////////////////////////////////////////
          
          myMsg->TTL = myMsg->TTL - 1;
 
@@ -1079,7 +1244,7 @@ implementation{
             return msg;
          }
 
-        
+        //dbg(GENERAL_CHANNEL,"Making sure that this isn't being called for some reason\n");
          if (!call PacketChecker.contains(myMsg->src))
             call PacketChecker.insert(myMsg->src,myMsg->seq);
          else if (call PacketChecker.get(myMsg->src) < myMsg->seq)
@@ -1112,6 +1277,7 @@ implementation{
          else if (myMsg->protocol == PROTOCOL_TCP && myMsg->dest == TOS_NODE_ID)
          {
             TCPpack derp = translateMsg(myMsg->payload);
+            outstandTCP out;
             uint16_t temp = 0;
             socket_t fd = call socketIdentifier.get(derp.destPort);
             socket_store_t addr = call socketHash.get(call socketIdentifier.get(derp.destPort));
@@ -1124,11 +1290,14 @@ implementation{
               dbg(GENERAL_CHANNEL, "Socket is trying to connect to socket that doesn't even exist\n");
             }
 
-            dbg(GENERAL_CHANNEL,"First Fd = %d\n",fd);
+            //dbg(GENERAL_CHANNEL,"First Fd = %d\n",fd);
 
-            if (call Transport.receive(myMsg) == FAIL)
+            if (derp.destPort != 41)
             {
-              dbg(GENERAL_CHANNEL, "There was an error coming from receive function\n");
+	            if (call Transport.receive(myMsg) == FAIL)
+	            {
+	              dbg(GENERAL_CHANNEL, "There was an error coming from receive function\n");
+	            }
             }
 
             temp = derp.destPort;
@@ -1139,13 +1308,45 @@ implementation{
 
             if (derp.flags[0] == FLAG_SYN && derp.flags[1] == FLAG_NONE && addr.state == LISTEN)
             {
+              socket_addr_t address;
+		      socket_store_t socket;
+
               derp.flags[0] = FLAG_SYN;
               derp.flags[1] = FLAG_ACK;
 
-              setupSeqInformation(fd,derp.seq);
+              if (derp.srcPort == 41)
+              {
+              	  uint16_t port = 1;
+
+              	  while(call socketIdentifier.contains(port))
+              	  	port++;
+
+			      dbg(GENERAL_CHANNEL,"Server on node %d being called with port value %d\n",TOS_NODE_ID,derp.destPort);
+
+			      fd = call Transport.socket();
+
+			      socket = call socketHash.get(fd);
+			      socket.RTT = 20000;
+			      socket.state = SYN_RCVD;
+
+			      call socketHash.remove(fd);
+			      call socketHash.insert(fd,socket);
+
+			      address.port = port;
+			      address.addr = TOS_NODE_ID;
+
+			      call Transport.bind(fd,&address);
+
+			      addr = call socketHash.get(fd);
+
+			      derp.srcPort = port;
+		      }
+
+              setupSeqInformation(fd,0,derp.seq + 1);
               seqIn = call seqInfo.get(fd);
               derp.ack = addr.nextExpected;
               derp.seq = 0;
+              derp.ack = 1;
             }
             else if (derp.flags[0] == FLAG_SYN && derp.flags[1] == FLAG_ACK && addr.state == SYN_SENT)
             {
@@ -1157,14 +1358,26 @@ implementation{
 
               call Transport.connect(fd,&connect);
 
-              setupSeqInformation(fd,derp.seq);
+              if (seqIn.currSeq < derp.ack)
+              {
+              	seqIn.currAck = derp.ack;
+              	call seqInfo.remove(fd);
+              	call seqInfo.insert(fd,seqIn);
+              }
+              else
+              {
+              	dbg(GENERAL_CHANNEL,"This is a message that was already acknowledged\n");
+              	return msg;
+              }
+
+              //setupSeqInformation(fd,derp.seq,derp.ack);
 
               addr = call socketHash.get(fd);
 
               addr.RTT = call periodicTimer.getNow() - addr.RTT;
 
               derp.seq = 1;
-              derp.ack = addr.lastAck + 1;
+              derp.ack = 1;
 
               dbg(GENERAL_CHANNEL, "RTT time is equal to = %u\n",addr.RTT);
               call socketHash.remove(fd);
@@ -1184,13 +1397,21 @@ implementation{
 
               derp.flags[0] = FLAG_NONE;
               derp.flags[1] = FLAG_NONE;
-              derp.seq = addr.nextExpected;
-              derp.ack = addr.lastAck + 1;
+              derp.seq = 1;
+              derp.ack = 1;
 
               setupTCPpacket(fd,derp.data);
 
+
               makePack(&sendPackage,myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
               sequence++;
+              
+              out.currPack = sendPackage;
+              out.expectedTime = 2*addr.RTT + call reliabilityTimer.getNow();
+              out.seqNum = 1;
+              out.fd = fd;
+              call outstandingMessages.pushfront(out);
+
               calcRoute();
               call Sender.send(sendPackage,portCalc(myMsg->src));
 
@@ -1198,59 +1419,146 @@ implementation{
             }
             else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == SYN_RCVD)
             {
-              //dbg(GENERAL_CHANNEL,"Have I found the culprit??\n");
+              
               connect.port = derp.destPort;
               connect.addr = myMsg->dest;
 
-              call socketConnections.insert(1,connect);
+              call socketConnections.insert(fd,connect);
 
               call Transport.accept(fd);
+              call readTimer.startPeriodic(10000);
               return msg;
             }
             else if (derp.flags[0] == FLAG_NONE && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
             {
               uint8_t buff[128];
               uint32_t size = 0;
-              derp.ack = processData(fd,derp.data,derp.seq) + derp.seq;
+              uint32_t modSeq = 0;
+              seqIn = call seqInfo.get(fd);
+              addr = call socketHash.get(fd);
 
+              //dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",addr.nextExpected);
+              //dbg(GENERAL_CHANNEL,"\t\tit's seq number = %u\n",seqIn.nextExpected);
+
+              if (seqIn.nextExpected == derp.seq && derp.seq < 128)
+                modSeq = addr.nextExpected;
+              else if (seqIn.nextExpected == derp.seq && derp.seq >=128)
+              {
+              	modSeq = seqIn.nextExpected - 128;
+
+              	while(modSeq >= 128)
+              		modSeq = modSeq-128;
+              }
+              else
+                dbg(GENERAL_CHANNEL,"Got a problem here\n");
+
+              processData(fd,derp.data,modSeq);
+              
+              seqIn = call seqInfo.get(fd);
+              //dbg(GENERAL_CHANNEL,"()()()()()()()\n");
+              //dbg(GENERAL_CHANNEL,"BEFORE:\n");
+              //dbg(GENERAL_CHANNEL,"Last read = %u\n",addr.lastRead);
+            /*
               size = call Transport.read(fd,buff,128);
 
-              if (size != 0)
+              if (size <= 4)
               dbg(GENERAL_CHANNEL,"-==========---Data is this = %s\n",buff);
+              else if (size > 4)
+              dbg(GENERAL_CHANNEL,"========================================================================Read more than wanted = %s\n",buff);
+            */  
               derp.seq = 1;
+
               addr = call socketHash.get(fd);
-              derp.ack = addr.nextExpected;
+              derp.ack = seqIn.nextExpected;
+              //dbg(GENERAL_CHANNEL,"()()()()()()()\n");
+              //dbg(GENERAL_CHANNEL,"AFTER:\n");
+              //dbg(GENERAL_CHANNEL,"Last read = %u\n",addr.lastRead);
+              
               dbg(GENERAL_CHANNEL,"*****************************\n");
-              dbg(GENERAL_CHANNEL,"Server received tcp pack with:\n");
+              dbg(GENERAL_CHANNEL,"Server sending tcp pack with:\n");
               dbg(GENERAL_CHANNEL,"\tSeq = %u\n",derp.seq);
               dbg(GENERAL_CHANNEL,"\tAck = %u\n",derp.ack);
+              dbg(GENERAL_CHANNEL,"-----------------------------\n");
+              dbg(GENERAL_CHANNEL,"\tnextExpected = %u\n",addr.nextExpected);
+              dbg(GENERAL_CHANNEL,"\t\tit's seq number = %u\n",seqIn.nextExpected);
+              dbg(GENERAL_CHANNEL,"\tlastReceived = %u\n",addr.lastRcvd);
+              dbg(GENERAL_CHANNEL,"\t\tit's seq number = %u\n",seqIn.lastRcvd);
               dbg(GENERAL_CHANNEL,"\tString = %s\n",derp.data);
               dbg(GENERAL_CHANNEL,"*****************************\n");
+              
+              
               derp.flags[0] = FLAG_ACK;
               derp.flags[1] = FLAG_NONE;
           
 
               seqIn = call seqInfo.get(fd);
 
-              //derp.ack = seqIn.nextExpected; 
+              makePack(&sendPackage,myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+
+              if (derp.ack == 140)
+              {
+              	dbg(GENERAL_CHANNEL,"This is to see what's up with the translation...\n");
+              	translateMsg(sendPackage.payload);
+              }
+              sequence++;
+              calcRoute();
+              call Sender.send(sendPackage,portCalc(myMsg->src));
+
+              return msg;
+
+               
             }
             else if (derp.flags[0] == FLAG_ACK && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
             {
+              uint32_t modAck = 0;
+              seqIn = call seqInfo.get(fd);
+              addr = call socketHash.get(fd);
 
-              dbg(GENERAL_CHANNEL,"*****************************\n");
-              dbg(GENERAL_CHANNEL,"Client received tcp pack with:\n");
-              dbg(GENERAL_CHANNEL,"\tSeq = %u\n",derp.seq);
-              dbg(GENERAL_CHANNEL,"\tAck = %u\n",derp.ack);
-              dbg(GENERAL_CHANNEL,"\tString = %s\n",derp.data);
-              dbg(GENERAL_CHANNEL,"*****************************\n");
+              if (derp.ack < seqIn.lastAck)
+              {
+                dbg(GENERAL_CHANNEL,"*((*(*(*(*(*(*Received ack that was less than last ack\n");
+              }
+              else if (derp.ack >= seqIn.lastAck)
+                modAck = derp.ack - seqIn.lastAck;
 
-              if(ackSocket(fd,derp.ack))
+              if ((modAck + addr.lastAck) >= 128)
+              {
+                uint32_t temp = 127 - addr.lastAck;
+
+                modAck = modAck - temp - 1;
+
+                while((modAck+addr.lastAck) >= 128)
+                {
+                	modAck = modAck - temp - 1;
+                }
+              }
+              else
+                modAck = modAck + addr.lastAck;
+
+              if (seqIn.currSeq < derp.ack)
+              {
+              	seqIn.currAck = derp.ack;
+              	call seqInfo.remove(fd);
+              	call seqInfo.insert(fd,seqIn);
+              }
+              else
+              {
+              	dbg(GENERAL_CHANNEL,"This is a message that was already acknowledged\n");
+              	return msg;
+              }
+
+              dbg(GENERAL_CHANNEL,"This is the modack going into ackSocket = %u\n",modAck);
+              if(ackSocket(fd,modAck))
               {
                 derp.flags[0] = FLAG_NONE;
                 derp.flags[1] = FLAG_NONE;
                 setupTCPpacket(fd,derp.data);
+                seqIn = call seqInfo.get(fd);
                 addr = call socketHash.get(fd);
-                derp.seq = addr.lastAck + 1;
+                derp.seq = seqIn.lastAck + 1;
+                seqIn.currSeq = derp.seq;
+                call seqInfo.remove(fd);
+                call seqInfo.insert(fd,seqIn);
                 derp.ack = 1;
 
                 //setupTCPpacket(fd,derp.data);
@@ -1261,14 +1569,25 @@ implementation{
                 return msg;
               }
 
+              /*
               dbg(GENERAL_CHANNEL,"*****************************\n");
-              dbg(GENERAL_CHANNEL,"Client received tcp pack with:\n");
+              dbg(GENERAL_CHANNEL,"Client sending tcp pack with:\n");
               dbg(GENERAL_CHANNEL,"\tSeq = %u\n",derp.seq);
               dbg(GENERAL_CHANNEL,"\tAck = %u\n",derp.ack);
+              //dbg(GENERAL_CHANNEL,"-----------------------------\n");
+              dbg(GENERAL_CHANNEL,"\tlastSent = %u\n",addr.lastSent);
+              dbg(GENERAL_CHANNEL,"\t\tit's seq number = %u\n",seqIn.lastSent);
+              //dbg(GENERAL_CHANNEL,"\tlastAck = %u\n",addr.lastAck);
+              //dbg(GENERAL_CHANNEL,"\t\tit's seq number = %u\n",seqIn.lastAck);
               dbg(GENERAL_CHANNEL,"\tString = %s\n",derp.data);
               dbg(GENERAL_CHANNEL,"*****************************\n");
+              */
 
-              if (currentCount == maxDataTransfer && addr.lastWritten == (addr.lastAck + 1) && addr.sendBuff[addr.lastSent] == 0 && addr.lastWritten == addr.lastSent)
+              dbg(GENERAL_CHANNEL,"*****************************\n");
+              dbg(GENERAL_CHANNEL,"Client sending tcp pack with:\n");
+              dbg(GENERAL_CHANNEL,"\tSeq = %u\n",derp.seq);
+
+              if (currentCount >= maxDataTransfer && addr.lastWritten == addr.lastAck && addr.lastWritten == addr.lastSent)
               {
                 dbg(GENERAL_CHANNEL,"Finished delivering data\n");
                 addr.lastAck = addr.lastWritten; 
@@ -1279,7 +1598,23 @@ implementation{
                 dbg(GENERAL_CHANNEL,"CURRENT_COUNT = %u\n",currentCount);
                 dbg(GENERAL_CHANNEL,"maxDataTransfer = %u\n",maxDataTransfer);
                 dbg(GENERAL_CHANNEL,"lastWritten = %u\n",addr.lastWritten);
+                dbg(GENERAL_CHANNEL,"lastAck = %u\n",addr.lastAck);
+                dbg(GENERAL_CHANNEL,"lastSent = %u\n",addr.lastSent);
               }
+
+              makePack(&sendPackage,myMsg->dest,myMsg->src,MAX_TTL,myMsg->protocol,sequence,&derp,PACKET_MAX_PAYLOAD_SIZE);
+              sequence++;
+
+              out.currPack = sendPackage;
+              out.expectedTime = 2*addr.RTT + call reliabilityTimer.getNow();
+              out.fd = fd;
+              out.seqNum = derp.seq;
+              call outstandingMessages.pushfront(out);
+
+              calcRoute();
+              call Sender.send(sendPackage,portCalc(myMsg->src));
+
+              return msg;
 
             }
             else if (derp.flags[0] == FLAG_FIN && derp.flags[1] == FLAG_NONE && addr.state == ESTABLISHED)
@@ -1339,6 +1674,11 @@ implementation{
 
               return msg;
             }
+            else
+            {
+            	dbg(GENERAL_CHANNEL,"ENCOUNTERED UNFITTING MESSAGE\n")
+            	return msg;
+            }
 
 
             
@@ -1358,16 +1698,30 @@ implementation{
             makePack(&sendPackage, myMsg->src, myMsg->dest, myMsg->TTL, myMsg->protocol, myMsg->seq, myMsg->payload, PACKET_MAX_PAYLOAD_SIZE);
             
             call Sender.send(sendPackage,AM_BROADCAST_ADDR);
+
+            return msg;
          }
     
         
       }
+      else
+      {
+      	dbg(GENERAL_CHANNEL,"Package is unknown\n");
+      }
+
+      //dbg(GENERAL_CHANNEL,"The Receive event function got to the lowest msg return statement\n");
       return msg;
    }
 
 
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
     dbg(GENERAL_CHANNEL, "PING EVENT for destination = %d\n",destination);
+
+    if (destination == TOS_NODE_ID)
+    {
+      dbg(GENERAL_CHANNEL,"**************Ending time = %u******************\n",call periodicTimer.getNow());
+      return;
+    }
     
     makePack(&sendPackage, TOS_NODE_ID, destination, MAX_TTL, PROTOCOL_PING, sequence, payload, PACKET_MAX_PAYLOAD_SIZE);
 
@@ -1376,6 +1730,7 @@ implementation{
     sequence++;
     calcRoute();
     
+
     if (destination == AM_BROADCAST_ADDR)
       call Sender.send(sendPackage,AM_BROADCAST_ADDR);
 	  else if (containsRouting(destination))
@@ -1410,10 +1765,17 @@ implementation{
    event void CommandHandler.setTestServer(uint16_t port){
     socket_t fd;
     socket_addr_t addr;
+    socket_store_t socket;
 
     dbg(GENERAL_CHANNEL,"Server on node %d being called with port value %d\n",TOS_NODE_ID,port);
 
     fd = call Transport.socket();
+
+    socket = call socketHash.get(fd);
+    socket.RTT = 20000;
+
+    call socketHash.remove(fd);
+    call socketHash.insert(fd,socket);
 
     addr.port = port;
     addr.addr = TOS_NODE_ID;
@@ -1421,8 +1783,6 @@ implementation{
     call Transport.bind(fd,&addr);
 
     call Transport.listen(fd);
-
-    //call readTimer.startPeriodic(200000);
    }
 
    event void CommandHandler.setTestClient(uint16_t dest, uint16_t srcPort, uint16_t destPort, uint16_t transfer){
@@ -1431,6 +1791,7 @@ implementation{
     socket_addr_t destAddr;
     socket_store_t derp;
     TCPpack tcp;
+    outstandTCP out;
 
     currentCount = 0;
     maxDataTransfer = transfer;
@@ -1466,13 +1827,25 @@ implementation{
     tcp.ack = 0;
     tcp.advertisedWindow = 0;
 
+    setupSeqInformation(fd,tcp.seq,tcp.ack);
+
     calcRoute();
 
     makePack(&sendPackage, TOS_NODE_ID, dest, MAX_TTL, PROTOCOL_TCP,sequence,&tcp,PACKET_MAX_PAYLOAD_SIZE);
     sequence++;
     call Sender.send(sendPackage,portCalc(dest));
 
+    out.currPack = sendPackage;
+    out.expectedTime = 10000 + call periodicTimer.getNow();
+    out.seqNum = 0;
+    out.fd = fd;
+
+    //call writeTimer.startOneShot(10);
     call writeTimer.startPeriodic(100);
+    call outstandingMessages.pushfront(out);
+    call reliabilityTimer.startPeriodic(11000);
+
+    dbg(GENERAL_CHANNEL,"========ReliabilityTimer Starting at %u\n",call reliabilityTimer.getNow());
    }
 
    event void CommandHandler.setAppServer(){}

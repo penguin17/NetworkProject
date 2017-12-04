@@ -15,34 +15,40 @@ implementation{
   {
     uint8_t arr[20];
     TCPpack derp;
+    uint8_t temp8;
+    uint16_t temp16;
+    uint32_t temp32;
 
     memcpy(arr,payload,20);
 
-    derp.srcPort = arr[0]<<15;
+    derp.srcPort = 0;
+    derp.srcPort = arr[0]<<8;
     derp.srcPort = derp.srcPort|arr[1];
 
 
-    derp.destPort = arr[2]<<15;
+    derp.destPort = 0;
+    derp.destPort = arr[2]<<8;
     derp.destPort = derp.destPort|arr[3];
 
     derp.flags[0] = arr[4];
     derp.flags[1] = arr[5];
 
-    derp.seq = arr[6]<<23;
-    derp.seq = derp.seq|(arr[7]<<15);
-    derp.seq = derp.seq|arr[8];
+    derp.seq = 0;
+    derp.seq = arr[6]<<24;
+    derp.seq = derp.seq|(arr[7]<<16);
+    derp.seq = derp.seq|(arr[8]<<8);
+    derp.seq = derp.seq|arr[9];
 
-    derp.ack = arr[9]<<23;
-    derp.ack = derp.seq|(arr[10]<<15);
-    derp.ack = derp.seq|arr[11];
-
-    derp.advertisedWindow = arr[12]<<15;
-    derp.advertisedWindow = derp.advertisedWindow|arr[13];
-
-    memcpy(derp.data,arr+14,5);
-
+    derp.ack = 0;
+    derp.ack = arr[10]<<24;
+    derp.ack = derp.ack|(arr[11]<<16);
+    derp.ack = derp.ack|(arr[12]<<8);
+    derp.ack = derp.ack|arr[13];
     
+    derp.advertisedWindow = arr[14]<<16;
+    derp.advertisedWindow = derp.advertisedWindow|arr[15];
 
+    memcpy(derp.data,arr+16,4);
 
     return derp;
 
@@ -158,7 +164,7 @@ implementation{
 		if (!call socketHash.contains(fd))
 			return FAIL;
 
-		dbg(GENERAL_CHANNEL,"Second Fd = %d\n",fd);
+		//dbg(GENERAL_CHANNEL,"Second Fd = %d\n",fd);
 
 		if (derp.flags[0] == FLAG_SYN && derp.flags[1] == FLAG_NONE && addr.state == LISTEN)
 		{
@@ -332,7 +338,7 @@ implementation{
 
 		//dbg(GENERAL_CHANNEL,"REAL buffer = %s\n",derp.rcvdBuff + 1);
 
-		if (derp.lastRead == derp.lastRcvd)
+		if (derp.lastRead == (derp.nextExpected-1) || (derp.lastRead == 127 && derp.nextExpected == 0))
 			return 0;
 
 		
@@ -346,11 +352,15 @@ implementation{
 				derp.lastRead = 0;
 
 			}
-			else if (derp.lastRead == (derp.nextExpected - 1))
+			if (derp.lastRead == (derp.nextExpected - 1) || (derp.lastRead == 127 && derp.nextExpected == 0))
 			{
-				//dbg(GENERAL_CHANNEL,"This is the reason why it's not shwoing anything?\n");
+				//dbg(GENERAL_CHANNEL,"This is the reason why it's not showing anything?\n");
+				buff[i] = derp.rcvdBuff[derp.lastRead];
+				buff[i+1] = 0;
+				dbg(GENERAL_CHANNEL,"Value of lastread = %u\n",derp.lastRead);
 				call socketHash.remove(fd);
 				call socketHash.insert(fd,derp);
+				dbg(GENERAL_CHANNEL,"Check value = %u\n",check);
 				return check;
 			}
 
@@ -360,8 +370,13 @@ implementation{
 			check++;
 		}
 
+		derp.lastRead--;
+
+		dbg(GENERAL_CHANNEL,"Value of lastread = %u\n",derp.lastRead);
+		buff[i+1] = 0;
 		call socketHash.remove(fd);
 		call socketHash.insert(fd,derp);
+		dbg(GENERAL_CHANNEL,"Check value = %u\n",check);
 		return check;
 	}
 	command uint16_t Transport.write(socket_t fd, uint8_t *buff, uint16_t bufflen)
@@ -370,24 +385,47 @@ implementation{
 	    uint16_t check = 0;
 	    int i = 0;
 
-	    if (derp.lastWritten == (derp.lastAck - 1))
+	    if (derp.lastWritten == (derp.lastAck - 1)  || (derp.lastWritten == 127 && derp.lastAck == 0))
 	    	return 0;
 
-	    if (derp.lastWritten == derp.lastAck)
+	    
 	    derp.lastWritten++;
+	    
 
 	    for (i = 0; i < bufflen; i++)
 	    {
 	    	if (derp.lastWritten >= SOCKET_BUFFER_SIZE)
 	    		derp.lastWritten = 0;
 
+	    	if (derp.lastWritten == (derp.lastAck))
+	    	{
+	 			if(derp.lastWritten != 0)
+			    	derp.lastWritten--;
+			    else
+			    	derp.lastWritten = 127;
+
+			    call socketHash.remove(fd);
+			    call socketHash.insert(fd,derp);
+			   
+			    return check;
+			}
+
 	    	derp.sendBuff[derp.lastWritten] = buff[i];
 	    	derp.lastWritten++;
+	    	check++;
 	    }
+
+	    if(derp.lastWritten != 0)
+	    	derp.lastWritten--;
+	    else
+	    	derp.lastWritten = 127;
+
 
 	    call socketHash.remove(fd);
 	    call socketHash.insert(fd,derp);
 
-	    dbg(GENERAL_CHANNEL,"The current written portion = %s\n",derp.sendBuff + 1);
+	    return check;
+
+	    //dbg(GENERAL_CHANNEL,"The current written portion = %s\n",derp.sendBuff + 1);
 	}	
 }

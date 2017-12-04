@@ -16,7 +16,11 @@ class TestSim:
     CMD_ROUTE_DUMP=3
     TEST_CLIENT = 4
     TEST_SERVER = 5
-    CMD_KILL = 6;
+    CMD_KILL = 6
+    CMD_HELLO = 10
+    CMD_MSG = 11
+    CMD_WHISPER = 12
+    CMD_LISTUSRS = 13
 
     # CHANNELS - see includes/channels.h
     COMMAND_CHANNEL="command";
@@ -142,7 +146,7 @@ class TestSim:
 
 def main():
     s = TestSim();
-    s.runTime(200);
+    s.runTime(20);
     s.loadTopo("long_line.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
@@ -151,8 +155,8 @@ def main():
     s.addChannel(s.NEIGHBOR_CHANNEL);
     s.addChannel(s.FLOODING_CHANNEL);
 
+    
     s.runTime(20);
-
     
     # s.runTime(200);
     # s.ping(1, 2, "Hello, World");
@@ -161,19 +165,23 @@ def main():
     # s.runTime(20);
     # s.ping(1,19,"Finally did it!!!");
     # s.runTime(30);
-    
-    print("Testing Testserver");
-    s.cmdTestServer(5,20);
-    s.runTime(100);
 
-    print("Testing TestClient");
-    s.cmdTestClient(1,5,20,20,20);
-    s.runTime(100);
+    # s.ping(1,2,"Hello");
+    # s.runTime(1000);
+    
+    # print("Testing Testserver");
+    # s.cmdTestServer(5,20);
+    # s.runTime(100);
+    # print("Testing TestClient");
+    # s.cmdTestClient(1,5,20,20,20);
+    # s.runTime(500);
+
+    print("*****************");
+    s.ping(1,1,"Hello");
+    s.runTime(10);
 
     # print("Testing ClosingClient");
     # s.cmdCloseClient(1,5,20,20);
-    # s.runTime(40);
-
 
 	
 

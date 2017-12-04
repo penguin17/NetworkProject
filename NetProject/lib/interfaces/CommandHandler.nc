@@ -10,4 +10,8 @@ interface CommandHandler{
    event void clientClose(uint16_t dest, uint16_t srcPort, uint16_t destPort);
    event void setAppServer();
    event void setAppClient();
+   event void cmdHello(uint16_t port,uint8_t* payload);
+   event void cmdMsg(uint8_t* payload);
+   event void cmdWhisper(uint8_t* payload);
+   event void cmdListUsrs(uint8_t* payload);
 }
